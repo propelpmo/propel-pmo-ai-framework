@@ -1,34 +1,67 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Propel PMO Dashboard", layout="wide")
+st.set_page_config(page_title="Propel PMO | Executive Dashboard", layout="wide")
 
-st.title("Propel PMO – PMO Performance Dashboard")
-st.markdown("Sample executive dashboard for portfolio health, delivery status, and risk visibility.")
+st.title("Propel PMO – Executive PMO Dashboard")
+st.caption("Sample dashboard for portfolio visibility, delivery health, and risk monitoring.")
 
-data = {
-    "Project Name": ["AI Governance Setup", "PMO Dashboard Build", "Risk Framework Rollout", "Portfolio Reporting Automation"],
-    "Status": ["On Track", "On Track", "At Risk", "Delayed"],
-    "Completion": [80, 65, 50, 40],
-    "Risk Level": ["Medium", "Low", "High", "High"]
-}
+data = [
+    ["AI Governance Setup", "On Track", 82, "Medium", "Strategy", "Kinjal"],
+    ["PMO Dashboard Build", "On Track", 68, "Low", "Delivery", "Kinjal"],
+    ["Risk Framework Rollout", "At Risk", 54, "High", "Governance", "Team A"],
+    ["Portfolio Reporting Automation", "Delayed", 41, "High", "Operations", "Team B"],
+    ["Resource Planning Model", "On Track", 76, "Medium", "Operations", "Team C"],
+    ["Stakeholder Communication Plan", "At Risk", 59, "Medium", "Delivery", "Team D"],
+]
 
-df = pd.DataFrame(data)
+df = pd.DataFrame(
+    data,
+    columns=["Project", "Status", "Completion", "Risk", "Workstream", "Owner"]
+)
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Projects", len(df))
-col2.metric("On Track", len(df[df["Status"] == "On Track"]))
-col3.metric("At Risk", len(df[df["Status"] == "At Risk"]))
-col4.metric("Avg Completion %", f'{int(df["Completion"].mean())}%')
+total_projects = len(df)
+on_track = (df["Status"] == "On Track").sum()
+at_risk = (df["Status"] == "At Risk").sum()
+delayed = (df["Status"] == "Delayed").sum()
+avg_completion = int(df["Completion"].mean())
 
-st.subheader("Project Portfolio Overview")
-st.dataframe(df, use_container_width=True)
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Total Projects", total_projects)
+c2.metric("On Track", on_track)
+c3.metric("At Risk", at_risk)
+c4.metric("Avg Completion", f"{avg_completion}%")
 
-st.subheader("Projects by Status")
-st.bar_chart(df["Status"].value_counts())
+st.markdown("---")
 
-st.subheader("Completion by Project")
-st.bar_chart(df.set_index("Project Name")["Completion"])
+left, right = st.columns([1.5, 1])
 
-st.subheader("Risk Summary")
-st.bar_chart(df["Risk Level"].value_counts())
+with left:
+    st.subheader("Portfolio Overview")
+    st.dataframe(df, use_container_width=True)
+
+    st.subheader("Completion by Project")
+    st.bar_chart(df.set_index("Project")["Completion"])
+
+with right:
+    st.subheader("Projects by Status")
+    st.bar_chart(df["Status"].value_counts())
+
+    st.subheader("Risk Distribution")
+    st.bar_chart(df["Risk"].value_counts())
+
+    st.subheader("Projects by Workstream")
+    st.bar_chart(df["Workstream"].value_counts())
+
+st.markdown("---")
+st.subheader("Executive Summary")
+
+high_risk = df[df["Risk"] == "High"]["Project"].tolist()
+high_risk_text = ", ".join(high_risk) if high_risk else "None"
+
+st.write(f"""
+- Portfolio currently includes **{total_projects} active initiatives**.
+- **{on_track} projects** are on track, **{at_risk}** are at risk, and **{delayed}** are delayed.
+- Average completion across the portfolio is **{avg_completion}%**.
+- Highest-risk initiatives: **{high_risk_text}**.
+""")
