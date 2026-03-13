@@ -1,3 +1,6 @@
+![GitHub Repo Size](https://img.shields.io/github/repo-size/yourname/propel-pmo-ai-framework)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![PMO](https://img.shields.io/badge/PMO-AI%20Driven-success)
 # Propel PMO – AI Driven PMO Framework
 
 This repository contains frameworks, templates, and dashboards for running an AI-enabled Program Management Office (PMO).
