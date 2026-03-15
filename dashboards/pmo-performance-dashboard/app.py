@@ -40,7 +40,15 @@ c4.metric("Avg AI Score", round(df["AI Score"].mean(), 1))
 st.markdown("---")
 
 st.subheader("Project Portfolio")
-display_df = df[["Project", "Completion", "AI Score", "Risk"]].copy()
+risk_filter = st.selectbox(
+    "Filter by Risk Level",
+    ["All", "Low", "Medium", "High"]
+)
+filtered_df = df.copy()
+
+if risk_filter != "All":
+    filtered_df = df[df["Risk"] == risk_filter]
+display_df = filtered_df[["Project", "Completion", "AI Score", "Risk"]].copy()
 
 def risk_label(risk):
     if risk == "Low":
