@@ -150,3 +150,31 @@ fig_maturity = px.bar(
 )
 
 st.plotly_chart(fig_maturity, use_container_width=True)
+st.markdown("---")
+st.subheader("Portfolio Health Gauge")
+
+fig_gauge = go.Figure(go.Indicator(
+    mode="gauge+number",
+    value=82,
+    title={"text": "Portfolio Health"},
+    gauge={
+        "axis": {"range": [0, 100]},
+        "bar": {"thickness": 0.3},
+        "steps": [
+            {"range": [0, 50], "color": "lightgray"},
+            {"range": [50, 75], "color": "gray"},
+            {"range": [75, 100], "color": "darkgray"}
+        ]
+    }
+))
+
+st.plotly_chart(fig_gauge, use_container_width=True)
+st.markdown("---")
+st.subheader("Project Priority Ranking")
+
+priority_df = df[["Project", "AI Score"]].sort_values(
+    by="AI Score",
+    ascending=False
+)
+
+st.dataframe(priority_df, use_container_width=True)
