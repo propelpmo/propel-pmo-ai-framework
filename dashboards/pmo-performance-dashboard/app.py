@@ -129,3 +129,16 @@ fig5 = px.bar(
 )
 
 st.plotly_chart(fig5, use_container_width=True)
+st.subheader("PMO Maturity Indicator")
+
+maturity_data = {
+    "Governance": 3.8,
+    "Delivery": 4.1,
+    "Reporting": 4.0,
+    "Risk": 3.6,
+    "Automation": 3.4
+}
+
+st.bar_chart(maturity_data)
+
+st.metric("Overall PMO Maturity", "3.8 / 5")
