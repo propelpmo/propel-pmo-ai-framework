@@ -1,67 +1,55 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
-st.set_page_config(page_title="Propel PMO | Executive Dashboard", layout="wide")
+st.title("Propel PMO Executive Dashboard")
 
-st.title("Propel PMO – Executive PMO Dashboard")
-st.caption("Sample dashboard for portfolio visibility, delivery health, and risk monitoring.")
+# Sample project data
+data = {
+    "Project": [
+        "AI Governance Setup",
+        "PMO Dashboard Build",
+        "Risk Framework Rollout",
+        "Portfolio Automation",
+        "Resource Planning"
+    ],
+    "Completion": [82, 68, 54, 41, 76],
+    "AI Score": [4.7, 4.5, 3.8, 3.5, 4.2]
+}
 
-data = [
-    ["AI Governance Setup", "On Track", 82, "Medium", "Strategy", "Kinjal"],
-    ["PMO Dashboard Build", "On Track", 68, "Low", "Delivery", "Kinjal"],
-    ["Risk Framework Rollout", "At Risk", 54, "High", "Governance", "Team A"],
-    ["Portfolio Reporting Automation", "Delayed", 41, "High", "Operations", "Team B"],
-    ["Resource Planning Model", "On Track", 76, "Medium", "Operations", "Team C"],
-    ["Stakeholder Communication Plan", "At Risk", 59, "Medium", "Delivery", "Team D"],
-]
+df = pd.DataFrame(data)
 
-df = pd.DataFrame(
-    data,
-    columns=["Project", "Status", "Completion", "Risk", "Workstream", "Owner"]
-)
+# KPI numbers
+st.subheader("Portfolio Summary")
 
-total_projects = len(df)
-on_track = (df["Status"] == "On Track").sum()
-at_risk = (df["Status"] == "At Risk").sum()
-delayed = (df["Status"] == "Delayed").sum()
-avg_completion = int(df["Completion"].mean())
+col1, col2, col3 = st.columns(3)
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Total Projects", total_projects)
-c2.metric("On Track", on_track)
-c3.metric("At Risk", at_risk)
-c4.metric("Avg Completion", f"{avg_completion}%")
+col1.metric("Total Projects", len(df))
+col2.metric("Average Completion", f"{int(df['Completion'].mean())}%")
+col3.metric("Average AI Score", round(df["AI Score"].mean(),1))
 
-st.markdown("---")
+st.write("---")
 
-left, right = st.columns([1.5, 1])
+# Project table
+st.subheader("Project Portfolio")
 
-with left:
-    st.subheader("Portfolio Overview")
-    st.dataframe(df, use_container_width=True)
+st.dataframe(df)
 
-    st.subheader("Completion by Project")
-    st.bar_chart(df.set_index("Project")["Completion"])
+# Delivery trend
+st.subheader("Delivery Trend")
 
-with right:
-    st.subheader("Projects by Status")
-    st.bar_chart(df["Status"].value_counts())
+trend = pd.DataFrame({
+    "Month": ["Jan","Feb","Mar","Apr","May","Jun"],
+    "Score": [68,72,75,79,83,87]
+})
 
-    st.subheader("Risk Distribution")
-    st.bar_chart(df["Risk"].value_counts())
+fig = px.line(trend, x="Month", y="Score", markers=True)
 
-    st.subheader("Projects by Workstream")
-    st.bar_chart(df["Workstream"].value_counts())
+st.plotly_chart(fig)
 
-st.markdown("---")
-st.subheader("Executive Summary")
+# AI Project Scoring
+st.subheader("AI Project Scoring")
 
-high_risk = df[df["Risk"] == "High"]["Project"].tolist()
-high_risk_text = ", ".join(high_risk) if high_risk else "None"
+fig2 = px.bar(df, x="Project", y="AI Score")
 
-st.write(f"""
-- Portfolio currently includes **{total_projects} active initiatives**.
-- **{on_track} projects** are on track, **{at_risk}** are at risk, and **{delayed}** are delayed.
-- Average completion across the portfolio is **{avg_completion}%**.
-- Highest-risk initiatives: **{high_risk_text}**.
-""")
+st.plotly_chart(fig2)
