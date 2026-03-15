@@ -199,3 +199,51 @@ priority_df = df[["Project", "AI Score"]].sort_values(
 )
 
 st.dataframe(priority_df, use_container_width=True)
+
+st.subheader("Project Portfolio")
+
+risk_filter = st.selectbox(
+    "Filter by Risk Level",
+    ["All", "Low", "Medium", "High"]
+)
+
+filtered_df = df.copy()
+
+if risk_filter != "All":
+    filtered_df = df[df["Risk"] == risk_filter]
+
+display_df = filtered_df[["Project", "Completion", "AI Score", "Risk"]].copy()
+
+def risk_label(risk):
+    if risk == "Low":
+        return "🟢 Low"
+    elif risk == "Medium":
+        return "🟠 Medium"
+    elif risk == "High":
+        return "🔴 High"
+    return risk
+
+display_df["Risk"] = display_df["Risk"].apply(risk_label)
+
+st.dataframe(display_df, use_container_width=True)
+
+st.subheader("Portfolio Risk Matrix")
+
+matrix_df = filtered_df.copy()
+
+fig_matrix = px.scatter(
+    matrix_df,
+    x="Completion",
+    y="Risk Score",
+    size="AI Score",
+    hover_name="Project"
+)
+
+fig_matrix.update_yaxes(
+    tickmode="array",
+    tickvals=[1, 2, 3],
+    ticktext=["Low", "Medium", "High"]
+)
+
+st.plotly_chart(fig_matrix, use_container_width=True)
+
