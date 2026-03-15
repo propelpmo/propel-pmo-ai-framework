@@ -40,7 +40,20 @@ c4.metric("Avg AI Score", round(df["AI Score"].mean(), 1))
 st.markdown("---")
 
 st.subheader("Project Portfolio")
-st.dataframe(df[["Project", "Completion", "AI Score", "Risk"]], use_container_width=True)
+display_df = df[["Project", "Completion", "AI Score", "Risk"]].copy()
+
+def risk_label(risk):
+    if risk == "Low":
+        return "🟢 Low"
+    elif risk == "Medium":
+        return "🟠 Medium"
+    elif risk == "High":
+        return "🔴 High"
+    return risk
+
+display_df["Risk"] = display_df["Risk"].apply(risk_label)
+
+st.dataframe(display_df, use_container_width=True)
 
 st.markdown("---")
 
