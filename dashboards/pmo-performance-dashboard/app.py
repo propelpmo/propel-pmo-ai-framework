@@ -2,11 +2,13 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+st.set_page_config(page_title="Propel PMO Command Center", layout="wide")
 
-st.set_page_config(page_title="Propel PMO Dashboard", layout="wide")
-
-st.title("Propel PMO Executive Dashboard")
-
+st.title("Propel PMO Command Center")
+st.caption(
+    "Executive dashboard for portfolio visibility, delivery health, risk monitoring, "
+    "AI project scoring, and PMO maturity."
+)
 data = {
     "Project": [
         "AI Governance Setup",
@@ -28,42 +30,49 @@ df = pd.DataFrame(data)
 
 risk_map = {"Low": 1, "Medium": 2, "High": 3}
 df["Risk Score"] = df["Risk"].map(risk_map)
+st.subheader("Executive Scorecard")
 
-st.subheader("Portfolio Summary")
+col1, col2, col3, col4 = st.columns(4)
 
-col1, col2, col3 = st.columns(3)
-
-col1.metric("Total Projects", len(df))
-col2.metric("Average Completion", f"{int(df['Completion'].mean())}%")
-col3.metric("Average AI Score", round(df["AI Score"].mean(), 1))
-
+col1.metric("Portfolio Health Score", "82 / 100")
+col2.metric("Total Projects", len(df))
+col3.metric("Average Completion", f"{int(df['Completion'].mean())}%")
+col4.metric("Average AI Score", round(df["AI Score"].mean(), 1))
 st.subheader("Project Portfolio")
 
 st.dataframe(
     df[["Project", "Completion", "AI Score", "Risk"]],
     use_container_width=True
 )
-
 st.subheader("Delivery Trend")
 
 trend = pd.DataFrame({
-    "Month": ["Jan","Feb","Mar","Apr","May","Jun"],
-    "Score": [68,72,75,79,83,87]
+    "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+    "Score": [68, 72, 75, 79, 83, 87]
 })
 
-fig = px.line(trend, x="Month", y="Score", markers=True)
+fig_trend = px.line(
+    trend,
+    x="Month",
+    y="Score",
+    markers=True,
+    title="Delivery Performance Over Time"
+)
 
-st.plotly_chart(fig, use_container_width=True)
-
+st.plotly_chart(fig_trend, use_container_width=True)
 st.subheader("AI Project Scoring")
 
-fig2 = px.bar(df, x="Project", y="AI Score")
+fig_score = px.bar(
+    df,
+    x="Project",
+    y="AI Score",
+    title="AI Priority Score by Project"
+)
 
-st.plotly_chart(fig2, use_container_width=True)
-
+st.plotly_chart(fig_score, use_container_width=True)
 st.subheader("Portfolio Heatmap")
 
-fig3 = px.density_heatmap(
+fig_heatmap = px.density_heatmap(
     df,
     x="Completion",
     y="Risk Score",
@@ -73,14 +82,13 @@ fig3 = px.density_heatmap(
     nbinsy=3
 )
 
-fig3.update_yaxes(
+fig_heatmap.update_yaxes(
     tickmode="array",
-    tickvals=[1,2,3],
-    ticktext=["Low","Medium","High"]
+    tickvals=[1, 2, 3],
+    ticktext=["Low", "Medium", "High"]
 )
 
-st.plotly_chart(fig3, use_container_width=True)
-
+st.plotly_chart(fig_heatmap, use_container_width=True)
 st.subheader("Risk Radar")
 
 radar_values = [
@@ -91,54 +99,40 @@ radar_values = [
     df["Schedule Risk"].mean()
 ]
 
-categories = ["Schedule","Budget","Delivery","Data","Schedule"]
+radar_categories = ["Schedule", "Budget", "Delivery", "Data", "Schedule"]
 
-fig4 = go.Figure()
+fig_radar = go.Figure()
 
-fig4.add_trace(
+fig_radar.add_trace(
     go.Scatterpolar(
         r=radar_values,
-        theta=categories,
+        theta=radar_categories,
         fill="toself"
     )
 )
 
-fig4.update_layout(
-    polar=dict(radialaxis=dict(visible=True, range=[0,5])),
+fig_radar.update_layout(
+    polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
     showlegend=False
 )
 
-st.plotly_chart(fig4, use_container_width=True)
-
+st.plotly_chart(fig_radar, use_container_width=True)
 st.subheader("PMO Maturity Indicator")
 
-maturity_data = pd.DataFrame({
-    "Dimension": ["Governance", "Delivery", "Reporting", "Risk Mgmt", "Automation"],
+maturity_df = pd.DataFrame({
+    "Dimension": ["Governance", "Delivery", "Reporting", "Risk", "Automation"],
     "Score": [3.8, 4.1, 4.0, 3.6, 3.4]
 })
 
-overall_maturity = round(maturity_data["Score"].mean(), 1)
+overall_maturity = round(maturity_df["Score"].mean(), 1)
 
 st.metric("Overall PMO Maturity", f"{overall_maturity} / 5")
 
-fig5 = px.bar(
-    maturity_data,
+fig_maturity = px.bar(
+    maturity_df,
     x="Dimension",
     y="Score",
     range_y=[0, 5]
 )
 
-st.plotly_chart(fig5, use_container_width=True)
-st.subheader("PMO Maturity Indicator")
-
-maturity_data = {
-    "Governance": 3.8,
-    "Delivery": 4.1,
-    "Reporting": 4.0,
-    "Risk": 3.6,
-    "Automation": 3.4
-}
-
-st.bar_chart(maturity_data)
-
-st.metric("Overall PMO Maturity", "3.8 / 5")
+st.plotly_chart(fig_maturity, use_container_width=True)
