@@ -205,6 +205,7 @@ st.subheader("Project Portfolio")
 risk_filter = st.selectbox(
     "Filter by Risk Level",
     ["All", "Low", "Medium", "High"]
+    key="risk_filter_main"
 )
 
 filtered_df = df.copy()
