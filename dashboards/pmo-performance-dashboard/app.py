@@ -109,3 +109,23 @@ fig4.update_layout(
 )
 
 st.plotly_chart(fig4, use_container_width=True)
+
+st.subheader("PMO Maturity Indicator")
+
+maturity_data = pd.DataFrame({
+    "Dimension": ["Governance", "Delivery", "Reporting", "Risk Mgmt", "Automation"],
+    "Score": [3.8, 4.1, 4.0, 3.6, 3.4]
+})
+
+overall_maturity = round(maturity_data["Score"].mean(), 1)
+
+st.metric("Overall PMO Maturity", f"{overall_maturity} / 5")
+
+fig5 = px.bar(
+    maturity_data,
+    x="Dimension",
+    y="Score",
+    range_y=[0, 5]
+)
+
+st.plotly_chart(fig5, use_container_width=True)
