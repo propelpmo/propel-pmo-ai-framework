@@ -71,7 +71,7 @@ def build_portfolio_summary(dataframe: pd.DataFrame) -> str:
     Risk Framework Rollout, Portfolio Automation, and Resource Planning.
     """
 
-def ask_propell_pmo_bot(user_question: str, portfolio_context: str, chat_history: list) -> str:
+def ask_propel_pmo_bot(...)(user_question: str, portfolio_context: str, chat_history: list) -> str:
     if not client:
         return "AI chatbot is not active yet. Please add OPENAI_API_KEY in Streamlit secrets."
 
@@ -126,6 +126,30 @@ portfolio_context = build_portfolio_summary(df)
 tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
 
 with tab1:
+    # -----------------------------
+    # AI EXECUTIVE SUMMARY
+    # -----------------------------
+    st.subheader("AI Executive Summary")
+
+    if st.button("Generate Executive Summary"):
+        if client:
+            with st.spinner("Generating executive summary..."):
+                portfolio_text = df.to_csv(index=False)
+
+                response = client.responses.create(
+                    model="gpt-5-mini",
+                    instructions=(
+                        "You are an executive PMO analyst. "
+                        "Create a concise executive summary of the portfolio. "
+                        "Highlight total projects, delivery health, average completion, "
+                        "AI score trends, and notable risks in a professional business tone."
+                    ),
+                    input=f"Summarize this PMO portfolio for leadership:\n\n{portfolio_text}"
+                )
+
+                st.success(response.output_text)
+        else:
+            st.warning("OPENAI_API_KEY is missing in Streamlit secrets.")
     # -----------------------------
     # TOP SCORECARDS
     # -----------------------------
