@@ -15,11 +15,12 @@ st.set_page_config(page_title="Propel PMO Command Center", layout="wide")
 api_key = st.secrets.get("OPENAI_API_KEY", "")
 
 client = None
+
 if api_key:
-try:
-client = OpenAI(api_key=api_key)
-except Exception:
-client = None
+    try:
+        client = OpenAI(api_key=api_key)
+    except Exception:
+        client = None
 
 # -----------------------------
 
