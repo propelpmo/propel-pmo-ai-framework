@@ -4,6 +4,36 @@ import plotly.express as px
 import plotly.graph_objects as go
 from openai import OpenAI
 
+SUMMARY
+st.markdown("---")
+st.subheader("AI Executive Summary")
+
+if st.button("Generate AI Executive Summary"):
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+    portfolio_text = filtered_df.to_csv(index=False)
+
+    prompt = f"""
+    You are an executive PMO advisor.
+
+    Review the portfolio data below and provide:
+    1. Executive summary
+    2. Top 3 risks
+    3. PMO recommendation
+
+    Keep the response clear, concise, and suitable for a CIO or executive sponsor.
+
+    Portfolio data:
+    {portfolio_text}
+    """
+
+    response = client.responses.create(
+        model="gpt-5.4",
+        input=prompt
+    )
+
+    st.write(response.output_text)
+
 st.set_page_config(page_title="Propel PMO Command Center", layout="wide")
 
 st.title("Propel PMO Command Center")
@@ -248,31 +278,3 @@ fig_matrix.update_yaxes(
 )
 
 st.plotly_chart(fig_matrix, use_container_width=True)
-st.markdown("---")
-st.subheader("AI Executive Summary")
-
-if st.button("Generate AI Executive Summary"):
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-    portfolio_text = filtered_df.to_csv(index=False)
-
-    prompt = f"""
-    You are an executive PMO advisor.
-
-    Review the portfolio data below and provide:
-    1. Executive summary
-    2. Top 3 risks
-    3. PMO recommendation
-
-    Keep the response clear, concise, and suitable for a CIO or executive sponsor.
-
-    Portfolio data:
-    {portfolio_text}
-    """
-
-    response = client.responses.create(
-        model="gpt-5.4",
-        input=prompt
-    )
-
-    st.write(response.output_text)
