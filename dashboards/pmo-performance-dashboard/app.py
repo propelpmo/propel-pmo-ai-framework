@@ -8,6 +8,30 @@ st.set_page_config(page_title="Propel PMO Command Center", layout="wide")
 
 st.title("Propel PMO Command Center")
 
+st.caption("Executive dashboard for portfolio visibility, delivery health, risk monitoring, AI scoring, and PMO maturity.")
+
+data = {
+    "Project": [
+        "AI Governance Setup",
+        "PMO Dashboard Build",
+        "Risk Framework Rollout",
+        "Portfolio Automation",
+        "Resource Planning"
+    ],
+    "Completion": [82, 68, 54, 41, 76],
+    "AI Score": [4.7, 4.5, 3.8, 3.5, 4.2],
+    "Risk": ["Medium", "Low", "High", "High", "Medium"],
+    "Schedule Risk": [3, 2, 5, 4, 3],
+    "Budget Risk": [2, 2, 4, 5, 3],
+    "Delivery Risk": [3, 2, 4, 5, 3],
+    "Data Risk": [2, 1, 4, 3, 2]
+}
+
+df = pd.DataFrame(data)
+
+risk_map = {"Low": 1, "Medium": 2, "High": 3}
+df["Risk Score"] = df["Risk"].map(risk_map)
+
 st.markdown("---")
 st.subheader("AI Executive Summary")
 
@@ -35,30 +59,6 @@ if st.button("Generate AI Executive Summary"):
     )
 
     st.write(response.output_text)
-
-st.caption("Executive dashboard for portfolio visibility, delivery health, risk monitoring, AI scoring, and PMO maturity.")
-
-data = {
-    "Project": [
-        "AI Governance Setup",
-        "PMO Dashboard Build",
-        "Risk Framework Rollout",
-        "Portfolio Automation",
-        "Resource Planning"
-    ],
-    "Completion": [82, 68, 54, 41, 76],
-    "AI Score": [4.7, 4.5, 3.8, 3.5, 4.2],
-    "Risk": ["Medium", "Low", "High", "High", "Medium"],
-    "Schedule Risk": [3, 2, 5, 4, 3],
-    "Budget Risk": [2, 2, 4, 5, 3],
-    "Delivery Risk": [3, 2, 4, 5, 3],
-    "Data Risk": [2, 1, 4, 3, 2]
-}
-
-df = pd.DataFrame(data)
-
-risk_map = {"Low": 1, "Medium": 2, "High": 3}
-df["Risk Score"] = df["Risk"].map(risk_map)
 
 st.subheader("Executive Scorecard")
 c1, c2, c3, c4 = st.columns(4)
