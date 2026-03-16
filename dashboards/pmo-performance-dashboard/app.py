@@ -7,6 +7,34 @@ from openai import OpenAI
 st.set_page_config(page_title="Propel PMO Command Center", layout="wide")
 
 st.title("Propel PMO Command Center")
+st.markdown("---")
+st.subheader("AI Executive Summary")
+
+if st.button("Generate AI Executive Summary"):
+    from openai import OpenAI
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+    portfolio_text = df.to_csv(index=False)
+
+    prompt = f"""
+    You are a senior PMO advisor.
+
+    Analyze the project portfolio data and provide:
+    1. Executive summary
+    2. Top 3 risks
+    3. Recommended PMO actions
+
+    Portfolio data:
+    {portfolio_text}
+    """
+
+    response = client.responses.create(
+        model="gpt-5.4",
+        input=prompt
+    )
+
+    st.write(response.output_text)
+
 st.caption("Executive dashboard for portfolio visibility, delivery health, risk monitoring, AI scoring, and PMO maturity.")
 
 data = {
@@ -248,33 +276,3 @@ fig_matrix.update_yaxes(
 )
 
 st.plotly_chart(fig_matrix, use_container_width=True)
-
-
-st.markdown("---")
-st.subheader("AI Executive Summary")
-
-if st.button("Generate AI Executive Summary"):
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-    portfolio_text = filtered_df.to_csv(index=False)
-
-    prompt = f"""
-    You are an executive PMO advisor.
-
-    Review the portfolio data below and provide:
-    1. Executive summary
-    2. Top 3 risks
-    3. PMO recommendation
-
-    Keep the response clear, concise, and suitable for a CIO or executive sponsor.
-
-    Portfolio data:
-    {portfolio_text}
-    """
-
-    response = client.responses.create(
-        model="gpt-5.4",
-        input=prompt
-    )
-
-    st.write(response.output_text)
