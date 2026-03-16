@@ -162,6 +162,15 @@ tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
 # -----------------------------
 
 with tab1:
+    st.subheader("AI Executive Summary")
+    st.caption("Click below to generate an AI summary for leadership.")
+
+if st.button("Generate Executive Summary", key="exec_summary_btn"):
+    with st.spinner("Generating executive summary..."):
+        st.session_state.executive_summary = generate_executive_summary(df)
+
+if st.session_state.executive_summary:
+    st.info(st.session_state.executive_summary)
     rag_counts = df["RAG Status"].value_counts()
 
     red_count = int(rag_counts.get("Red", 0))
