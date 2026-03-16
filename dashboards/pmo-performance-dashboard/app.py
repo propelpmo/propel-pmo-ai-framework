@@ -326,3 +326,55 @@ with tab2:
                 st.markdown(reply)
 
         st.session_state.messages.append({"role": "assistant", "content": reply})
+# -----------------------------
+
+# AI PORTFOLIO ASK
+
+# -----------------------------
+with tab3:
+    st.subheader("AI Portfolio Ask")
+    st.caption("Ask questions about your portfolio data.")
+
+    portfolio_text = df.to_csv(index=False)
+
+    user_question = st.text_input(
+        "Ask something about the portfolio",
+        placeholder="Example: Which projects need immediate attention and why?"
+    )
+
+    if st.button("Ask AI", key="ask_ai_btn"):
+        if user_question.strip():
+            with st.spinner("Analyzing portfolio data..."):
+                prompt = f"""
+You are an executive PMO analyst.
+
+Below is portfolio data:
+{portfolio_text}
+
+Answer this user question clearly and briefly:
+{user_question}
+
+Keep the response business-friendly and actionable.
+"""
+                response = client.chat.completions.create(
+                    model="gpt-4.1-mini",
+                    messages=[
+                        {"role": "system", "content": "You are a PMO portfolio analysis assistant."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.3,
+                )
+
+                ai_answer = response.choices[0].message.content
+                st.success(ai_answer)
+        else:
+            st.warning("Please enter a question first.")
+
+    st.markdown("""
+        **Try asking:**
+        - Which projects are most at risk?
+        - Which projects should leadership review this week?
+        - What portfolio trends stand out?
+        - Which projects have high AI score but high delivery risk?
+        - Summarize the overall health of this portfolio.
+        """)
