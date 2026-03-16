@@ -155,7 +155,7 @@ if "messages" not in st.session_state:
 
 # -----------------------------
 
-tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
+tab1, tab2, tab3 = st.tabs(["Dashboard", "AI PMO Chatbot", "AI Portfolio Ask"])
 
 # -----------------------------
 
