@@ -253,9 +253,9 @@ st.plotly_chart(fig_risk_score, use_container_width=True)
 
 with tab2:
 
-st.subheader("AI PMO Chatbot")
+    st.subheader("AI PMO Chatbot")
 
-for message in st.session_state.messages:
+    for message in st.session_state.messages:
 
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
