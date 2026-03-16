@@ -162,12 +162,11 @@ tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
 # -----------------------------
 
 with tab1:
+    rag_counts = df["RAG Status"].value_counts()
 
-rag_counts = df["RAG Status"].value_counts()
-
-red_count = int(rag_counts.get("Red", 0))
-amber_count = int(rag_counts.get("Amber", 0))
-green_count = int(rag_counts.get("Green", 0))
+    red_count = int(rag_counts.get("Red", 0))
+    amber_count = int(rag_counts.get("Amber", 0))
+    green_count = int(rag_counts.get("Green", 0))
 
 st.subheader("Executive Scorecard")
 
