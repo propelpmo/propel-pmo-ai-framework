@@ -244,7 +244,6 @@ st.subheader("Risk Score by Project")
 fig_risk_score = px.bar(df, x="Project", y="Overall Risk Score", range_y=[0, 5])
 
 st.plotly_chart(fig_risk_score, use_container_width=True)
-```
 
 # -----------------------------
 
