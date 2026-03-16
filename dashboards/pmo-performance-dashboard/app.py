@@ -21,6 +21,51 @@ if api_key:
     except Exception:
         client = None
 
+# ---- ADD THIS FUNCTION RIGHT HERE ----
+
+def ask_propel_pmo_bot(user_question, portfolio_context, chat_history):
+
+    if client is None:
+        return "AI service is not configured. Please add your OpenAI API key."
+
+    prompt = f"""
+You are Propel PMO AI Assistant.
+
+You ONLY answer questions related to:
+- Propel PMO services
+- PMO strategy
+- governance
+- delivery oversight
+- portfolio health
+- risk monitoring
+- executive reporting
+- PMO modernization
+- AI PMO
+
+If the question is unrelated, respond ONLY with:
+I'm designed to answer Propel PMO and portfolio management questions only.
+
+Portfolio context:
+{portfolio_context}
+
+User question:
+{user_question}
+"""
+
+    response = client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=[
+            {"role": "system", "content": "You are a Propel PMO assistant."},
+            {"role": "user", "content": prompt}
+        ],
+        temperature=0.2,
+    )
+
+    return response.choices[0].message.content
+
+
+# ---- REST OF YOUR APP BELOW ----
+
 # -----------------------------
 
 # PAGE HEADER
@@ -149,6 +194,7 @@ if "messages" not in st.session_state:
         }
     ]
 
+#
 # -----------------------------
 
 # TABS
