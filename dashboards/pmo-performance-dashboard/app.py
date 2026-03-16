@@ -163,7 +163,6 @@ tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
 
 with tab1:
 
-```
 rag_counts = df["RAG Status"].value_counts()
 
 red_count = int(rag_counts.get("Red", 0))
@@ -256,7 +255,6 @@ st.plotly_chart(fig_risk_score, use_container_width=True)
 
 with tab2:
 
-```
 st.subheader("AI PMO Chatbot")
 
 for message in st.session_state.messages:
@@ -293,4 +291,3 @@ if user_input:
     st.session_state.messages.append(
         {"role": "assistant", "content": reply}
     )
-```
