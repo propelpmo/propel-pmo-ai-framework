@@ -21,7 +21,7 @@ if api_key:
 st.title("Propel PMO Command Center")
 st.caption(
     "Executive dashboard for portfolio visibility, delivery health, risk monitoring, "
-    "AI project scoring, PMO maturity, and AI-powered visitor support."
+    "AI project scoring, PMO maturity, executive summary generation, and AI-powered visitor support."
 )
 
 # -----------------------------
@@ -46,8 +46,37 @@ data = {
 
 df = pd.DataFrame(data)
 
+# -----------------------------
+# DERIVED METRICS
+# -----------------------------
 risk_map = {"Low": 1, "Medium": 2, "High": 3}
 df["Risk Score"] = df["Risk"].map(risk_map)
+
+# Average detailed risk score across dimensions
+df["Overall Risk Score"] = (
+    df["Schedule Risk"] +
+    df["Budget Risk"] +
+    df["Delivery Risk"] +
+    df["Data Risk"]
+) / 4
+
+def get_rag_status(row) -> str:
+    """
+    Simple RAG logic:
+    - Red: completion < 60 OR overall risk >= 4
+    - Amber: completion < 75 OR overall risk >= 3
+    - Green: otherwise
+    """
+    if row["Completion"] < 60 or row["Overall Risk Score"] >= 4:
+        return "Red"
+    elif row["Completion"] < 75 or row["Overall Risk Score"] >= 3:
+        return "Amber"
+    return "Green"
+
+df["RAG Status"] = df.apply(get_rag_status, axis=1)
+
+rag_numeric_map = {"Green": 3, "Amber": 2, "Red": 1}
+df["RAG Numeric"] = df["RAG Status"].map(rag_numeric_map)
 
 # -----------------------------
 # HELPERS
@@ -55,23 +84,49 @@ df["Risk Score"] = df["Risk"].map(risk_map)
 def build_portfolio_summary(dataframe: pd.DataFrame) -> str:
     avg_completion = round(dataframe["Completion"].mean(), 1)
     avg_ai_score = round(dataframe["AI Score"].mean(), 1)
+    avg_risk_score = round(dataframe["Overall Risk Score"].mean(), 1)
     total_projects = len(dataframe)
     high_risk_count = len(dataframe[dataframe["Risk"] == "High"])
     medium_risk_count = len(dataframe[dataframe["Risk"] == "Medium"])
+    red_count = len(dataframe[dataframe["RAG Status"] == "Red"])
+    amber_count = len(dataframe[dataframe["RAG Status"] == "Amber"])
+    green_count = len(dataframe[dataframe["RAG Status"] == "Green"])
 
     return f"""
     Propel PMO snapshot:
     - Total projects: {total_projects}
     - Average completion: {avg_completion}%
     - Average AI score: {avg_ai_score} / 5
+    - Average overall risk score: {avg_risk_score} / 5
     - High-risk projects: {high_risk_count}
     - Medium-risk projects: {medium_risk_count}
+    - RAG distribution: Green={green_count}, Amber={amber_count}, Red={red_count}
 
     Current projects include AI Governance Setup, PMO Dashboard Build,
     Risk Framework Rollout, Portfolio Automation, and Resource Planning.
     """
 
-def ask_propel_pmo_bot(...)(user_question: str, portfolio_context: str, chat_history: list) -> str:
+def generate_executive_summary(dataframe: pd.DataFrame) -> str:
+    if not client:
+        return "AI Executive Summary is not active yet. Please add OPENAI_API_KEY in Streamlit secrets."
+
+    portfolio_text = dataframe.to_csv(index=False)
+
+    response = client.responses.create(
+        model="gpt-5-mini",
+        instructions=(
+            "You are an executive PMO analyst. "
+            "Create a concise executive summary for leadership. "
+            "Include portfolio health, total projects, average completion, AI score trends, "
+            "risk posture, RAG status, and any notable delivery concerns. "
+            "Keep it professional, concise, and business-oriented."
+        ),
+        input=f"Summarize this PMO portfolio for leadership:\n\n{portfolio_text}"
+    )
+
+    return response.output_text.strip()
+
+def ask_propel_pmo_bot(user_question: str, portfolio_context: str, chat_history: list) -> str:
     if not client:
         return "AI chatbot is not active yet. Please add OPENAI_API_KEY in Streamlit secrets."
 
@@ -120,11 +175,29 @@ def ask_propel_pmo_bot(...)(user_question: str, portfolio_context: str, chat_his
 
 portfolio_context = build_portfolio_summary(df)
 
+if "executive_summary" not in st.session_state:
+    st.session_state.executive_summary = ""
+
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": (
+                "Hello — I’m the Propel PMO AI Assistant. "
+                "I can explain AI PMO services, portfolio governance, delivery oversight, "
+                "risk monitoring, RAG health, and PMO modernization."
+            )
+        }
+    ]
+
 # -----------------------------
 # TABS
 # -----------------------------
 tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
 
+# -----------------------------
+# DASHBOARD TAB
+# -----------------------------
 with tab1:
     # -----------------------------
     # AI EXECUTIVE SUMMARY
@@ -132,43 +205,68 @@ with tab1:
     st.subheader("AI Executive Summary")
 
     if st.button("Generate Executive Summary"):
-        if client:
-            with st.spinner("Generating executive summary..."):
-                portfolio_text = df.to_csv(index=False)
+        with st.spinner("Generating executive summary..."):
+            st.session_state.executive_summary = generate_executive_summary(df)
 
-                response = client.responses.create(
-                    model="gpt-5-mini",
-                    instructions=(
-                        "You are an executive PMO analyst. "
-                        "Create a concise executive summary of the portfolio. "
-                        "Highlight total projects, delivery health, average completion, "
-                        "AI score trends, and notable risks in a professional business tone."
-                    ),
-                    input=f"Summarize this PMO portfolio for leadership:\n\n{portfolio_text}"
-                )
+    if st.session_state.executive_summary:
+        st.info(st.session_state.executive_summary)
 
-                st.success(response.output_text)
-        else:
-            st.warning("OPENAI_API_KEY is missing in Streamlit secrets.")
     # -----------------------------
     # TOP SCORECARDS
     # -----------------------------
     st.subheader("Executive Scorecard")
 
-    col1, col2, col3, col4 = st.columns(4)
+    rag_counts = df["RAG Status"].value_counts()
+    red_count = int(rag_counts.get("Red", 0))
+    amber_count = int(rag_counts.get("Amber", 0))
+    green_count = int(rag_counts.get("Green", 0))
+
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     col1.metric("Portfolio Health Score", "82 / 100")
     col2.metric("Total Projects", len(df))
     col3.metric("Average Completion", f"{int(df['Completion'].mean())}%")
     col4.metric("Average AI Score", round(df["AI Score"].mean(), 1))
+    col5.metric("Average Risk Score", round(df["Overall Risk Score"].mean(), 1))
+    col6.metric("Red Projects", red_count)
 
     # -----------------------------
     # PROJECT PORTFOLIO
     # -----------------------------
     st.subheader("Project Portfolio")
+
     st.dataframe(
-        df[["Project", "Completion", "AI Score", "Risk"]],
+        df[
+            [
+                "Project",
+                "Completion",
+                "AI Score",
+                "Risk",
+                "Risk Score",
+                "Overall Risk Score",
+                "RAG Status"
+            ]
+        ],
         use_container_width=True
     )
+
+    # -----------------------------
+    # RAG SUMMARY
+    # -----------------------------
+    st.subheader("RAG Status Summary")
+
+    rag_summary = pd.DataFrame({
+        "RAG Status": ["Green", "Amber", "Red"],
+        "Count": [green_count, amber_count, red_count]
+    })
+
+    fig_rag = px.bar(
+        rag_summary,
+        x="RAG Status",
+        y="Count",
+        title="Project Distribution by RAG Status",
+        category_orders={"RAG Status": ["Green", "Amber", "Red"]}
+    )
+    st.plotly_chart(fig_rag, use_container_width=True)
 
     # -----------------------------
     # DELIVERY TREND
@@ -203,6 +301,21 @@ with tab1:
     )
 
     st.plotly_chart(fig_score, use_container_width=True)
+
+    # -----------------------------
+    # RISK SCORE CHART
+    # -----------------------------
+    st.subheader("Risk Score by Project")
+
+    fig_risk_score = px.bar(
+        df,
+        x="Project",
+        y="Overall Risk Score",
+        title="Overall Risk Score by Project",
+        range_y=[0, 5]
+    )
+
+    st.plotly_chart(fig_risk_score, use_container_width=True)
 
     # -----------------------------
     # PORTFOLIO HEATMAP
@@ -288,21 +401,15 @@ with tab1:
 
     st.plotly_chart(fig_maturity, use_container_width=True)
 
+# -----------------------------
+# CHATBOT TAB
+# -----------------------------
 with tab2:
     st.subheader("AI PMO Chatbot")
-    st.caption("Ask about Propel PMO services, AI PMO strategy, governance, delivery, and modernization.")
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {
-                "role": "assistant",
-                "content": (
-                    "Hello — I’m the Propel PMO AI Assistant. "
-                    "I can explain AI PMO services, portfolio governance, delivery oversight, "
-                    "and PMO modernization."
-                )
-            }
-        ]
+    st.caption(
+        "Ask about Propel PMO services, AI PMO strategy, governance, delivery, "
+        "risk monitoring, RAG health, and modernization."
+    )
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -335,7 +442,7 @@ with tab2:
 
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                reply = ask_propell_pmo_bot(
+                reply = ask_propel_pmo_bot(
                     user_question=user_input,
                     portfolio_context=portfolio_context,
                     chat_history=st.session_state.messages
