@@ -190,71 +190,71 @@ with tab1:
     col5.metric("Average Risk Score", round(df["Overall Risk Score"].mean(), 1))
     col6.metric("Red Projects", red_count)
 
-st.subheader("Project Portfolio")
-
-styled_df = df[
-    [
-        "Project",
-        "Completion",
-        "AI Score",
-        "Risk",
-        "Risk Score",
-        "Overall Risk Score",
-        "RAG Status",
-    ]
-].style.map(highlight_rag, subset=["RAG Status"])
-
-st.dataframe(styled_df, use_container_width=True)
-
-st.subheader("RAG Status Summary")
-
-rag_summary = pd.DataFrame(
-    {
-        "RAG Status": ["Green", "Amber", "Red"],
-        "Count": [green_count, amber_count, red_count],
-    }
-)
-
-fig_rag = px.bar(
-    rag_summary,
-    x="RAG Status",
-    y="Count",
-    color="RAG Status",
-    category_orders={"RAG Status": ["Green", "Amber", "Red"]},
-    color_discrete_map={
-        "Green": "#22c55e",
-        "Amber": "#f59e0b",
-        "Red": "#ef4444",
-    },
-    title="Project Distribution by RAG Status",
-)
-
-st.plotly_chart(fig_rag, use_container_width=True)
-
-st.subheader("Delivery Trend")
-
-trend = pd.DataFrame(
-    {
-        "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-        "Score": [68, 72, 75, 79, 83, 87],
-    }
-)
-
-fig_trend = px.line(trend, x="Month", y="Score", markers=True)
-
-st.plotly_chart(fig_trend, use_container_width=True)
-
-st.subheader("AI Project Scoring")
-
-fig_score = px.bar(df, x="Project", y="AI Score")
-
-st.plotly_chart(fig_score, use_container_width=True)
-
-st.subheader("Risk Score by Project")
-
-fig_risk_score = px.bar(df, x="Project", y="Overall Risk Score", range_y=[0, 5])
-
-st.plotly_chart(fig_risk_score, use_container_width=True)
+    st.subheader("Project Portfolio")
+    
+    styled_df = df[
+        [
+            "Project",
+            "Completion",
+            "AI Score",
+            "Risk",
+            "Risk Score",
+            "Overall Risk Score",
+            "RAG Status",
+        ]
+    ].style.map(highlight_rag, subset=["RAG Status"])
+    
+    st.dataframe(styled_df, use_container_width=True)
+    
+    st.subheader("RAG Status Summary")
+    
+    rag_summary = pd.DataFrame(
+        {
+            "RAG Status": ["Green", "Amber", "Red"],
+            "Count": [green_count, amber_count, red_count],
+        }
+    )
+    
+    fig_rag = px.bar(
+        rag_summary,
+        x="RAG Status",
+        y="Count",
+        color="RAG Status",
+        category_orders={"RAG Status": ["Green", "Amber", "Red"]},
+        color_discrete_map={
+            "Green": "#22c55e",
+            "Amber": "#f59e0b",
+            "Red": "#ef4444",
+        },
+        title="Project Distribution by RAG Status",
+    )
+    
+    st.plotly_chart(fig_rag, use_container_width=True)
+    
+    st.subheader("Delivery Trend")
+    
+    trend = pd.DataFrame(
+        {
+            "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+            "Score": [68, 72, 75, 79, 83, 87],
+        }
+    )
+    
+    fig_trend = px.line(trend, x="Month", y="Score", markers=True)
+    
+    st.plotly_chart(fig_trend, use_container_width=True)
+    
+    st.subheader("AI Project Scoring")
+    
+    fig_score = px.bar(df, x="Project", y="AI Score")
+    
+    st.plotly_chart(fig_score, use_container_width=True)
+    
+    st.subheader("Risk Score by Project")
+    
+    fig_risk_score = px.bar(df, x="Project", y="Overall Risk Score", range_y=[0, 5])
+    
+    st.plotly_chart(fig_risk_score, use_container_width=True)
 
 # -----------------------------
 
