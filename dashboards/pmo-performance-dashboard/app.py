@@ -326,12 +326,15 @@ with tab2:
                 st.markdown(reply)
 
         st.session_state.messages.append({"role": "assistant", "content": reply})
+        
 # -----------------------------
 
 # AI PORTFOLIO ASK
 
 # -----------------------------
+
 with tab3:
+    
     st.subheader("AI Portfolio Ask")
     st.caption("Ask questions about your portfolio data.")
 
