@@ -92,14 +92,14 @@ df["RAG Status"] = df.apply(get_rag_status, axis=1)
 # -----------------------------
 
 def highlight_rag(val):
-if val == "Green":
-return "background-color:#d1fae5;color:#065f46;font-weight:bold"
-elif val == "Amber":
-return "background-color:#fef3c7;color:#92400e;font-weight:bold"
-elif val == "Red":
-return "background-color:#fee2e2;color:#991b1b;font-weight:bold"
-else:
-return ""
+    if val == "Green":
+        return "background-color:#d1fae5;color:#065f46;font-weight:bold"
+    elif val == "Amber":
+        return "background-color:#fef3c7;color:#92400e;font-weight:bold"
+    elif val == "Red":
+        return "background-color:#fee2e2;color:#991b1b;font-weight:bold"
+    else:
+        return ""
 
 # -----------------------------
 
