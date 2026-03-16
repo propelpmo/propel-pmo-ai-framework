@@ -256,6 +256,37 @@ with tab1:
     
     st.plotly_chart(fig_risk_score, use_container_width=True)
 
+    #STATUS BY BREAKDOWN
+    st.subheader("Portfolio Status Breakdown")
+    
+    status_counts = df["Status"].value_counts().reset_index()
+    status_counts.columns = ["Status", "Count"]
+    
+    fig_status = px.pie(
+        status_counts,
+        names="Status",
+        values="Count",
+        hole=0.45,
+        title="Project Status Distribution"
+    )
+    
+    st.plotly_chart(fig_status, use_container_width=True)
+
+    #COMPLETION BY PROJECT
+    st.subheader("Completion by Project")
+
+    fig_completion = px.bar(
+        df,
+        x="Project",
+        y="Completion",
+        title="Project Completion % by Project",
+        text="Completion"
+    )
+    
+    fig_completion.update_traces(texttemplate="%{text}%", textposition="outside")
+    st.plotly_chart(fig_completion, use_container_width=True)
+
+    
 # -----------------------------
 
 # CHATBOT
