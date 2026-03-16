@@ -7,6 +7,7 @@ from openai import OpenAI
 st.set_page_config(page_title="Propel PMO Command Center", layout="wide")
 
 st.title("Propel PMO Command Center")
+
 st.markdown("---")
 st.subheader("AI Executive Summary")
 
