@@ -129,6 +129,8 @@ RAG distribution: Green={green_count}, Amber={amber_count}, Red={red_count}
 
 portfolio_context = build_portfolio_summary(df)
 
+if "executive_summary" not in st.session_state:
+    st.session_state.executive_summary = ""
 # -----------------------------
 
 # SESSION STATE
