@@ -167,28 +167,28 @@ with tab1:
     st.subheader("AI Executive Summary")
     st.caption("Click below to generate an AI summary for leadership.")
 
-if st.button("Generate Executive Summary", key="exec_summary_btn"):
-    with st.spinner("Generating executive summary..."):
-        st.session_state.executive_summary = generate_executive_summary(df)
+    if st.button("Generate Executive Summary", key="exec_summary_btn"):
+        with st.spinner("Generating executive summary..."):
+            st.session_state.executive_summary = generate_executive_summary(df)
 
-if st.session_state.executive_summary:
-    st.info(st.session_state.executive_summary)
+    if st.session_state.executive_summary:
+        st.info(st.session_state.executive_summary)
+    
     rag_counts = df["RAG Status"].value_counts()
-
     red_count = int(rag_counts.get("Red", 0))
     amber_count = int(rag_counts.get("Amber", 0))
     green_count = int(rag_counts.get("Green", 0))
 
-st.subheader("Executive Scorecard")
+    st.subheader("Executive Scorecard")
 
-col1, col2, col3, col4, col5, col6 = st.columns(6)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
 
-col1.metric("Portfolio Health Score", "82 / 100")
-col2.metric("Total Projects", len(df))
-col3.metric("Average Completion", f"{int(df['Completion'].mean())}%")
-col4.metric("Average AI Score", round(df["AI Score"].mean(), 1))
-col5.metric("Average Risk Score", round(df["Overall Risk Score"].mean(), 1))
-col6.metric("Red Projects", red_count)
+    col1.metric("Portfolio Health Score", "82 / 100")
+    col2.metric("Total Projects", len(df))
+    col3.metric("Average Completion", f"{int(df['Completion'].mean())}%")
+    col4.metric("Average AI Score", round(df["AI Score"].mean(), 1))
+    col5.metric("Average Risk Score", round(df["Overall Risk Score"].mean(), 1))
+    col6.metric("Red Projects", red_count)
 
 st.subheader("Project Portfolio")
 
