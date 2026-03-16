@@ -249,7 +249,7 @@ fig_matrix.update_yaxes(
 
 st.plotly_chart(fig_matrix, use_container_width=True)
 
-SUMMARY
+
 st.markdown("---")
 st.subheader("AI Executive Summary")
 
