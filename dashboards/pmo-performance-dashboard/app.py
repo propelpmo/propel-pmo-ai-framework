@@ -136,12 +136,16 @@ portfolio_context = build_portfolio_summary(df)
 # -----------------------------
 
 if "messages" not in st.session_state:
-st.session_state.messages = [
-{
-"role": "assistant",
-"content": "Hello — I’m the Propel PMO AI Assistant. Ask about PMO services or portfolio governance."
-}
-]
+    st.session_state.messages = [
+        {
+            "role": "assistant",
+            "content": (
+                "Hello — I’m the Propel PMO AI Assistant. "
+                "I can explain AI PMO services, portfolio governance, delivery oversight, "
+                "risk monitoring, RAG health, and PMO modernization."
+            )
+        }
+    ]
 
 # -----------------------------
 
