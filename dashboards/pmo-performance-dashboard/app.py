@@ -76,13 +76,13 @@ df["Schedule Risk"]
 ) / 4
 
 def get_rag_status(row):
-if row["Completion"] < 60 or row["Overall Risk Score"] >= 4:
-return "Red"
-elif row["Completion"] < 75 or row["Overall Risk Score"] >= 3:
-return "Amber"
-else:
-return "Green"
-
+    if row["Completion"] < 60 or row["Overall Risk Score"] >= 4:
+        return "Red"
+    elif row["Completion"] < 75 or row["Overall Risk Score"] >= 3:
+        return "Amber"
+    else:
+        return "Green"
+        
 df["RAG Status"] = df.apply(get_rag_status, axis=1)
 
 # -----------------------------
