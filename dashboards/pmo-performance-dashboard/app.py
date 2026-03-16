@@ -15,12 +15,11 @@ st.set_page_config(page_title="Propel PMO Command Center", layout="wide")
 api_key = st.secrets.get("OPENAI_API_KEY", "")
 
 client = None
-
 if api_key:
-    try:
-        client = OpenAI(api_key=api_key)
-    except Exception:
-        client = None
+try:
+client = OpenAI(api_key=api_key)
+except Exception:
+client = None
 
 # -----------------------------
 
@@ -70,37 +69,37 @@ risk_map = {"Low": 1, "Medium": 2, "High": 3}
 df["Risk Score"] = df["Risk"].map(risk_map)
 
 df["Overall Risk Score"] = (
-df["Schedule Risk"] +
-df["Budget Risk"] +
-df["Delivery Risk"] +
-df["Data Risk"]
+df["Schedule Risk"]
++ df["Budget Risk"]
++ df["Delivery Risk"]
++ df["Data Risk"]
 ) / 4
 
 def get_rag_status(row):
-    if row["Completion"] < 60 or row["Overall Risk Score"] >= 4:
-        return "Red"
-    elif row["Completion"] < 75 or row["Overall Risk Score"] >= 3:
-        return "Amber"
-    else:
-        return "Green"
+if row["Completion"] < 60 or row["Overall Risk Score"] >= 4:
+return "Red"
+elif row["Completion"] < 75 or row["Overall Risk Score"] >= 3:
+return "Amber"
+else:
+return "Green"
 
 df["RAG Status"] = df.apply(get_rag_status, axis=1)
 
 # -----------------------------
 
-# RAG COLOR HELPER
+# COLOR HELPER
 
 # -----------------------------
 
 def highlight_rag(val):
-    if val == "Green":
-        return "background-color:#d1fae5;color:#065f46;font-weight:bold"
-    elif val == "Amber":
-        return "background-color:#fef3c7;color:#92400e;font-weight:bold"
-    elif val == "Red":
-        return "background-color:#fee2e2;color:#991b1b;font-weight:bold"
-    else:
-        return ""
+if val == "Green":
+return "background-color:#d1fae5;color:#065f46;font-weight:bold"
+elif val == "Amber":
+return "background-color:#fef3c7;color:#92400e;font-weight:bold"
+elif val == "Red":
+return "background-color:#fee2e2;color:#991b1b;font-weight:bold"
+else:
+return ""
 
 # -----------------------------
 
@@ -108,118 +107,45 @@ def highlight_rag(val):
 
 # -----------------------------
 
-def build_portfolio_summary(dataframe: pd.DataFrame) -> str:
+def build_portfolio_summary(dataframe):
 avg_completion = round(dataframe["Completion"].mean(), 1)
 avg_ai_score = round(dataframe["AI Score"].mean(), 1)
 avg_risk_score = round(dataframe["Overall Risk Score"].mean(), 1)
+
+```
 total_projects = len(dataframe)
+
 red_count = len(dataframe[dataframe["RAG Status"] == "Red"])
 amber_count = len(dataframe[dataframe["RAG Status"] == "Amber"])
 green_count = len(dataframe[dataframe["RAG Status"] == "Green"])
 
+return f"""
 ```
-return f"""  
-Propel PMO snapshot:  
-- Total projects: {total_projects}  
-- Average completion: {avg_completion}%  
-- Average AI score: {avg_ai_score} / 5  
-- Average overall risk score: {avg_risk_score} / 5  
-- RAG distribution: Green={green_count}, Amber={amber_count}, Red={red_count}  
+
+Propel PMO snapshot
+
+Total projects: {total_projects}
+Average completion: {avg_completion}%
+Average AI score: {avg_ai_score} / 5
+Average overall risk score: {avg_risk_score} / 5
+
+RAG distribution:
+Green={green_count}, Amber={amber_count}, Red={red_count}
 """
-```
-
-def generate_executive_summary(dataframe: pd.DataFrame) -> str:
-if not client:
-return (
-"AI Executive Summary is not active. "
-"Please add OPENAI_API_KEY in Streamlit secrets."
-)
-
-```
-try:  
-    portfolio_text = dataframe.to_csv(index=False)
-
-    response = client.responses.create(  
-        model="gpt-5-mini",  
-        instructions=(  
-            "You are an executive PMO analyst. "
-            "Create a concise executive summary for leadership. "
-            "Include portfolio health, average completion, AI score, "
-            "risk posture, RAG status, and notable delivery concerns."
-        ),  
-        input=f"Summarize this PMO portfolio for leadership:\n\n{portfolio_text}"  
-    )
-
-    return response.output_text.strip()
-
-except Exception as e:  
-    return f"Executive summary error: {e}"
-```
-
-def ask_propel_pmo_bot(user_question: str, portfolio_context: str, chat_history: list) -> str:
-if not client:
-return (
-"AI chatbot is not active. "
-"Please add OPENAI_API_KEY in Streamlit secrets."
-)
-
-```
-try:  
-    history_text = ""  
-    for msg in chat_history[-6:]:  
-        role = msg["role"].upper()  
-        history_text += f"{role}: {msg['content']}\n"
-
-    instructions = """  
-    You are the Propel PMO AI Assistant.
-
-    Your purpose:  
-    - Answer visitor questions about Propel PMO services  
-    - Explain AI-driven PMO capabilities in simple, executive-friendly language  
-    - Help visitors understand portfolio governance, delivery oversight, PMO modernization,  
-      AI transformation support, staffing support, and advisory services  
-    - Stay concise, professional, and business-oriented  
-    - Do not make up pricing, case studies, or clients  
-    - If asked something unrelated to Propel PMO, politely redirect to Propel PMO capabilities  
-    """
-
-    prompt = f"""  
-    Portfolio context:  
-    {portfolio_context}
-
-    Recent conversation:  
-    {history_text}
-
-    Visitor question:  
-    {user_question}  
-    """
-
-    response = client.responses.create(  
-        model="gpt-5-mini",  
-        instructions=instructions,  
-        input=prompt  
-    )
-
-    return response.output_text.strip()
-
-except Exception as e:  
-    return f"Chatbot error: {e}"
-```
 
 portfolio_context = build_portfolio_summary(df)
 
-if "executive_summary" not in st.session_state:
-st.session_state.executive_summary = ""
+# -----------------------------
+
+# SESSION STATE
+
+# -----------------------------
 
 if "messages" not in st.session_state:
 st.session_state.messages = [
 {
 "role": "assistant",
-"content": (
-"Hello — I’m the Propel PMO AI Assistant. "
-"I can explain AI PMO services, portfolio governance, delivery oversight, "
-"risk monitoring, RAG health, and PMO modernization."
-)
+"content": "Hello — I’m the Propel PMO AI Assistant. Ask about PMO services or portfolio governance."
 }
 ]
 
@@ -231,30 +157,30 @@ st.session_state.messages = [
 
 tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
 
+# -----------------------------
+
+# DASHBOARD
+
+# -----------------------------
+
 with tab1:
-st.subheader("AI Executive Summary")
 
 ```
-if st.button("Generate Executive Summary"):  
-    with st.spinner("Generating executive summary..."):  
-        st.session_state.executive_summary = generate_executive_summary(df)
+rag_counts = df["RAG Status"].value_counts()
 
-if st.session_state.executive_summary:  
-    st.info(st.session_state.executive_summary)
+red_count = int(rag_counts.get("Red", 0))
+amber_count = int(rag_counts.get("Amber", 0))
+green_count = int(rag_counts.get("Green", 0))
 
 st.subheader("Executive Scorecard")
 
-rag_counts = df["RAG Status"].value_counts()  
-red_count = int(rag_counts.get("Red", 0))  
-amber_count = int(rag_counts.get("Amber", 0))  
-green_count = int(rag_counts.get("Green", 0))
+col1, col2, col3, col4, col5, col6 = st.columns(6)
 
-col1, col2, col3, col4, col5, col6 = st.columns(6)  
-col1.metric("Portfolio Health Score", "82 / 100")  
-col2.metric("Total Projects", len(df))  
-col3.metric("Average Completion", f"{int(df['Completion'].mean())}%")  
-col4.metric("Average AI Score", round(df["AI Score"].mean(), 1))  
-col5.metric("Average Risk Score", round(df["Overall Risk Score"].mean(), 1))  
+col1.metric("Portfolio Health Score", "82 / 100")
+col2.metric("Total Projects", len(df))
+col3.metric("Average Completion", f"{int(df['Completion'].mean())}%")
+col4.metric("Average AI Score", round(df["AI Score"].mean(), 1))
+col5.metric("Average Risk Score", round(df["Overall Risk Score"].mean(), 1))
 col6.metric("Red Projects", red_count)
 
 st.subheader("Project Portfolio")
@@ -267,7 +193,7 @@ styled_df = df[
         "Risk",
         "Risk Score",
         "Overall Risk Score",
-        "RAG Status"
+        "RAG Status",
     ]
 ].style.map(highlight_rag, subset=["RAG Status"])
 
@@ -275,10 +201,12 @@ st.dataframe(styled_df, use_container_width=True)
 
 st.subheader("RAG Status Summary")
 
-rag_summary = pd.DataFrame({
-    "RAG Status": ["Green", "Amber", "Red"],
-    "Count": [green_count, amber_count, red_count]
-})
+rag_summary = pd.DataFrame(
+    {
+        "RAG Status": ["Green", "Amber", "Red"],
+        "Count": [green_count, amber_count, red_count],
+    }
+)
 
 fig_rag = px.bar(
     rag_summary,
@@ -289,64 +217,52 @@ fig_rag = px.bar(
     color_discrete_map={
         "Green": "#22c55e",
         "Amber": "#f59e0b",
-        "Red": "#ef4444"
+        "Red": "#ef4444",
     },
-    title="Project Distribution by RAG Status"
+    title="Project Distribution by RAG Status",
 )
 
 st.plotly_chart(fig_rag, use_container_width=True)
 
 st.subheader("Delivery Trend")
 
-trend = pd.DataFrame({
-    "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-    "Score": [68, 72, 75, 79, 83, 87]
-})
-
-fig_trend = px.line(
-    trend,
-    x="Month",
-    y="Score",
-    markers=True,
-    title="Delivery Performance Over Time"
+trend = pd.DataFrame(
+    {
+        "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+        "Score": [68, 72, 75, 79, 83, 87],
+    }
 )
+
+fig_trend = px.line(trend, x="Month", y="Score", markers=True)
 
 st.plotly_chart(fig_trend, use_container_width=True)
 
 st.subheader("AI Project Scoring")
 
-fig_score = px.bar(
-    df,
-    x="Project",
-    y="AI Score",
-    title="AI Priority Score by Project"
-)
+fig_score = px.bar(df, x="Project", y="AI Score")
 
 st.plotly_chart(fig_score, use_container_width=True)
 
 st.subheader("Risk Score by Project")
 
-fig_risk_score = px.bar(
-    df,
-    x="Project",
-    y="Overall Risk Score",
-    title="Overall Risk Score by Project",
-    range_y=[0, 5]
-)
+fig_risk_score = px.bar(df, x="Project", y="Overall Risk Score", range_y=[0, 5])
 
 st.plotly_chart(fig_risk_score, use_container_width=True)
 ```
+
+# -----------------------------
+
+# CHATBOT
+
+# -----------------------------
 
 with tab2:
 
 ```
 st.subheader("AI PMO Chatbot")
-st.caption(
-    "Ask about Propel PMO services, AI PMO strategy, governance, delivery, "
-    "risk monitoring, RAG health, and modernization."
-)
 
 for message in st.session_state.messages:
+
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
@@ -354,19 +270,29 @@ user_input = st.chat_input("Ask a question about Propel PMO...")
 
 if user_input:
 
-    st.session_state.messages.append({"role": "user", "content": user_input})
+    st.session_state.messages.append(
+        {"role": "user", "content": user_input}
+    )
 
     with st.chat_message("user"):
         st.markdown(user_input)
 
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            reply = ask_propel_pmo_bot(
-                user_question=user_input,
-                portfolio_context=portfolio_context,
-                chat_history=st.session_state.messages
-            )
-            st.markdown(reply)
+    if client:
 
-    st.session_state.messages.append({"role": "assistant", "content": reply})
+        response = client.responses.create(
+            model="gpt-5-mini",
+            input=user_input,
+        )
+
+        reply = response.output_text
+
+    else:
+        reply = "AI chatbot requires OPENAI_API_KEY."
+
+    with st.chat_message("assistant"):
+        st.markdown(reply)
+
+    st.session_state.messages.append(
+        {"role": "assistant", "content": reply}
+    )
 ```
