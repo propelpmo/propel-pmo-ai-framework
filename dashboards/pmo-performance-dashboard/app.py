@@ -108,29 +108,23 @@ def highlight_rag(val):
 # -----------------------------
 
 def build_portfolio_summary(dataframe):
-avg_completion = round(dataframe["Completion"].mean(), 1)
-avg_ai_score = round(dataframe["AI Score"].mean(), 1)
-avg_risk_score = round(dataframe["Overall Risk Score"].mean(), 1)
+    avg_completion = round(dataframe["Completion"].mean(), 1)
+    avg_ai_score = round(dataframe["AI Score"].mean(), 1)
+    avg_risk_score = round(dataframe["Overall Risk Score"].mean(), 1)
 
-```
-total_projects = len(dataframe)
+    total_projects = len(dataframe)
 
-red_count = len(dataframe[dataframe["RAG Status"] == "Red"])
-amber_count = len(dataframe[dataframe["RAG Status"] == "Amber"])
-green_count = len(dataframe[dataframe["RAG Status"] == "Green"])
+    red_count = len(dataframe[dataframe["RAG Status"] == "Red"])
+    amber_count = len(dataframe[dataframe["RAG Status"] == "Amber"])
+    green_count = len(dataframe[dataframe["RAG Status"] == "Green"])
 
-return f"""
-```
-
-Propel PMO snapshot
-
+    return f"""
+Propel PMO snapshot:
 Total projects: {total_projects}
 Average completion: {avg_completion}%
 Average AI score: {avg_ai_score} / 5
 Average overall risk score: {avg_risk_score} / 5
-
-RAG distribution:
-Green={green_count}, Amber={amber_count}, Red={red_count}
+RAG distribution: Green={green_count}, Amber={amber_count}, Red={red_count}
 """
 
 portfolio_context = build_portfolio_summary(df)
