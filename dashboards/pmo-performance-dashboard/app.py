@@ -254,38 +254,49 @@ st.plotly_chart(fig_risk_score, use_container_width=True)
 with tab2:
 
     st.subheader("AI PMO Chatbot")
+    st.caption(
+        "Ask about Propel PMO services, AI PMO strategy, governance, delivery, "
+        "risk monitoring, RAG health, and modernization."
+    )
 
     for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+    suggested_questions = [
+        "What does an AI PMO do?",
+        "How can Propel PMO improve portfolio governance?",
+        "How does AI help executive reporting?",
+        "What services does Propel PMO offer?"
+    ]
 
-user_input = st.chat_input("Ask a question about Propel PMO...")
+    st.write("Try one of these questions:")
+    cols = st.columns(len(suggested_questions))
 
-if user_input:
+    for i, question in enumerate(suggested_questions):
+        if cols[i].button(question, key=f"suggested_{i}"):
+            st.session_state.pending_question = question
 
-    st.session_state.messages.append(
-        {"role": "user", "content": user_input}
-    )
+    user_input = st.chat_input("Ask a question about Propel PMO...")
 
-    with st.chat_message("user"):
-        st.markdown(user_input)
+    if "pending_question" in st.session_state and not user_input:
+        user_input = st.session_state.pending_question
+        del st.session_state.pending_question
 
-    if client:
+    if user_input:
 
-        response = client.responses.create(
-            model="gpt-5-mini",
-            input=user_input,
-        )
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
-        reply = response.output_text
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
-    else:
-        reply = "AI chatbot requires OPENAI_API_KEY."
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                reply = ask_propel_pmo_bot(
+                    user_question=user_input,
+                    portfolio_context=portfolio_context,
+                    chat_history=st.session_state.messages
+                )
+                st.markdown(reply)
 
-    with st.chat_message("assistant"):
-        st.markdown(reply)
-
-    st.session_state.messages.append(
-        {"role": "assistant", "content": reply}
-    )
+        st.session_state.messages.append({"role": "assistant", "content": reply})
