@@ -6,10 +6,27 @@ from openai import OpenAI
 
 st.set_page_config(page_title="Propel PMO Command Center", layout="wide")
 
+# -----------------------------
+# OPENAI CLIENT
+# -----------------------------
+api_key = st.secrets.get("OPENAI_API_KEY", "")
+
+client = None
+if api_key:
+    client = OpenAI(api_key=api_key)
+
+# -----------------------------
+# PAGE HEADER
+# -----------------------------
 st.title("Propel PMO Command Center")
+st.caption(
+    "Executive dashboard for portfolio visibility, delivery health, risk monitoring, "
+    "AI project scoring, PMO maturity, and AI-powered visitor support."
+)
 
-st.caption("Executive dashboard for portfolio visibility, delivery health, risk monitoring, AI scoring, and PMO maturity.")
-
+# -----------------------------
+# SAMPLE DATA
+# -----------------------------
 data = {
     "Project": [
         "AI Governance Setup",
@@ -32,72 +49,106 @@ df = pd.DataFrame(data)
 risk_map = {"Low": 1, "Medium": 2, "High": 3}
 df["Risk Score"] = df["Risk"].map(risk_map)
 
-st.markdown("---")
-st.subheader("AI Executive Summary")
+# -----------------------------
+# HELPERS
+# -----------------------------
+def build_portfolio_summary(dataframe: pd.DataFrame) -> str:
+    avg_completion = round(dataframe["Completion"].mean(), 1)
+    avg_ai_score = round(dataframe["AI Score"].mean(), 1)
+    total_projects = len(dataframe)
+    high_risk_count = len(dataframe[dataframe["Risk"] == "High"])
+    medium_risk_count = len(dataframe[dataframe["Risk"] == "Medium"])
 
-if st.button("Generate AI Executive Summary"):
-    from openai import OpenAI
-    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+    return f"""
+    Propel PMO snapshot:
+    - Total projects: {total_projects}
+    - Average completion: {avg_completion}%
+    - Average AI score: {avg_ai_score} / 5
+    - High-risk projects: {high_risk_count}
+    - Medium-risk projects: {medium_risk_count}
 
-    portfolio_text = df.to_csv(index=False)
+    Current projects include AI Governance Setup, PMO Dashboard Build,
+    Risk Framework Rollout, Portfolio Automation, and Resource Planning.
+    """
+
+def ask_propell_pmo_bot(user_question: str, portfolio_context: str, chat_history: list) -> str:
+    if not client:
+        return "AI chatbot is not active yet. Please add OPENAI_API_KEY in Streamlit secrets."
+
+    history_text = ""
+    for msg in chat_history[-6:]:
+        role = msg["role"].upper()
+        history_text += f"{role}: {msg['content']}\n"
+
+    instructions = """
+    You are the Propel PMO AI Assistant.
+
+    Your purpose:
+    - Answer visitor questions about Propel PMO services
+    - Explain AI-driven PMO capabilities in simple, executive-friendly language
+    - Help visitors understand portfolio governance, delivery oversight, PMO modernization,
+      AI transformation support, staffing support, and advisory services
+    - Stay concise, professional, and business-oriented
+    - Do not make up pricing, case studies, or clients
+    - If asked something unrelated to Propel PMO, politely redirect to Propel PMO capabilities
+
+    Tone:
+    - Executive
+    - Clear
+    - Professional
+    - Helpful
+    """
 
     prompt = f"""
-    You are a senior PMO advisor.
+    Portfolio context:
+    {portfolio_context}
 
-    Analyze the project portfolio data and provide:
-    1. Executive summary
-    2. Top 3 risks
-    3. Recommended PMO actions
+    Recent conversation:
+    {history_text}
 
-    Portfolio data:
-    {portfolio_text}
+    Visitor question:
+    {user_question}
     """
 
     response = client.responses.create(
-        model="gpt-5.4",
+        model="gpt-5-mini",
+        instructions=instructions,
         input=prompt
     )
 
-    st.write(response.output_text)
+    return response.output_text.strip()
 
-st.subheader("Executive Scorecard")
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Portfolio Health", "82 / 100")
-c2.metric("Total Projects", len(df))
-c3.metric("Avg Completion", f"{int(df['Completion'].mean())}%")
-c4.metric("Avg AI Score", round(df["AI Score"].mean(), 1))
+portfolio_context = build_portfolio_summary(df)
 
-st.markdown("---")
+# -----------------------------
+# TABS
+# -----------------------------
+tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
 
-st.subheader("Project Portfolio")
-risk_filter = st.selectbox(
-    "Filter by Risk Level",
-    ["All", "Low", "Medium", "High"]
-)
-filtered_df = df.copy()
+with tab1:
+    # -----------------------------
+    # TOP SCORECARDS
+    # -----------------------------
+    st.subheader("Executive Scorecard")
 
-if risk_filter != "All":
-    filtered_df = df[df["Risk"] == risk_filter]
-display_df = filtered_df[["Project", "Completion", "AI Score", "Risk"]].copy()
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Portfolio Health Score", "82 / 100")
+    col2.metric("Total Projects", len(df))
+    col3.metric("Average Completion", f"{int(df['Completion'].mean())}%")
+    col4.metric("Average AI Score", round(df["AI Score"].mean(), 1))
 
-def risk_label(risk):
-    if risk == "Low":
-        return "🟢 Low"
-    elif risk == "Medium":
-        return "🟠 Medium"
-    elif risk == "High":
-        return "🔴 High"
-    return risk
+    # -----------------------------
+    # PROJECT PORTFOLIO
+    # -----------------------------
+    st.subheader("Project Portfolio")
+    st.dataframe(
+        df[["Project", "Completion", "AI Score", "Risk"]],
+        use_container_width=True
+    )
 
-display_df["Risk"] = display_df["Risk"].apply(risk_label)
-
-st.dataframe(display_df, use_container_width=True)
-
-st.markdown("---")
-
-col1, col2 = st.columns(2)
-
-with col1:
+    # -----------------------------
+    # DELIVERY TREND
+    # -----------------------------
     st.subheader("Delivery Trend")
 
     trend = pd.DataFrame({
@@ -109,25 +160,29 @@ with col1:
         trend,
         x="Month",
         y="Score",
-        markers=True
+        markers=True,
+        title="Delivery Performance Over Time"
     )
+
     st.plotly_chart(fig_trend, use_container_width=True)
 
-with col2:
+    # -----------------------------
+    # AI PROJECT SCORING
+    # -----------------------------
     st.subheader("AI Project Scoring")
 
     fig_score = px.bar(
         df,
         x="Project",
-        y="AI Score"
+        y="AI Score",
+        title="AI Priority Score by Project"
     )
+
     st.plotly_chart(fig_score, use_container_width=True)
 
-st.markdown("---")
-
-col3, col4 = st.columns(2)
-
-with col3:
+    # -----------------------------
+    # PORTFOLIO HEATMAP
+    # -----------------------------
     st.subheader("Portfolio Heatmap")
 
     fig_heatmap = px.density_heatmap(
@@ -137,7 +192,8 @@ with col3:
         z="AI Score",
         histfunc="avg",
         nbinsx=5,
-        nbinsy=3
+        nbinsy=3,
+        title="Portfolio Heatmap by Completion, Risk, and AI Score"
     )
 
     fig_heatmap.update_yaxes(
@@ -148,7 +204,9 @@ with col3:
 
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
-with col4:
+    # -----------------------------
+    # RISK RADAR
+    # -----------------------------
     st.subheader("Risk Radar")
 
     radar_values = [
@@ -162,118 +220,102 @@ with col4:
     radar_categories = ["Schedule", "Budget", "Delivery", "Data", "Schedule"]
 
     fig_radar = go.Figure()
-
     fig_radar.add_trace(
         go.Scatterpolar(
             r=radar_values,
             theta=radar_categories,
-            fill="toself"
+            fill="toself",
+            name="Portfolio Risk"
         )
     )
 
     fig_radar.update_layout(
         polar=dict(
-            radialaxis=dict(visible=True, range=[0, 5])
+            radialaxis=dict(
+                visible=True,
+                range=[0, 5]
+            )
         ),
         showlegend=False
     )
 
     st.plotly_chart(fig_radar, use_container_width=True)
 
-st.markdown("---")
+    # -----------------------------
+    # PMO MATURITY INDICATOR
+    # -----------------------------
+    st.subheader("PMO Maturity Indicator")
 
-st.subheader("PMO Maturity Indicator")
+    maturity_df = pd.DataFrame({
+        "Dimension": ["Governance", "Delivery", "Reporting", "Risk", "Automation"],
+        "Score": [3.8, 4.1, 4.0, 3.6, 3.4]
+    })
 
-maturity_df = pd.DataFrame({
-    "Dimension": ["Governance", "Delivery", "Reporting", "Risk", "Automation"],
-    "Score": [3.8, 4.1, 4.0, 3.6, 3.4]
-})
+    overall_maturity = round(maturity_df["Score"].mean(), 1)
+    st.metric("Overall PMO Maturity", f"{overall_maturity} / 5")
 
-overall_maturity = round(maturity_df["Score"].mean(), 1)
+    fig_maturity = px.bar(
+        maturity_df,
+        x="Dimension",
+        y="Score",
+        title="PMO Maturity by Dimension",
+        range_y=[0, 5]
+    )
 
-st.metric("Overall PMO Maturity", f"{overall_maturity} / 5")
+    st.plotly_chart(fig_maturity, use_container_width=True)
 
-fig_maturity = px.bar(
-    maturity_df,
-    x="Dimension",
-    y="Score",
-    range_y=[0, 5]
-)
+with tab2:
+    st.subheader("AI PMO Chatbot")
+    st.caption("Ask about Propel PMO services, AI PMO strategy, governance, delivery, and modernization.")
 
-st.plotly_chart(fig_maturity, use_container_width=True)
-st.markdown("---")
-st.subheader("Portfolio Health Gauge")
-
-fig_gauge = go.Figure(go.Indicator(
-    mode="gauge+number",
-    value=82,
-    title={"text": "Portfolio Health"},
-    gauge={
-        "axis": {"range": [0, 100]},
-        "bar": {"thickness": 0.3},
-        "steps": [
-            {"range": [0, 50], "color": "lightgray"},
-            {"range": [50, 75], "color": "gray"},
-            {"range": [75, 100], "color": "darkgray"}
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {
+                "role": "assistant",
+                "content": (
+                    "Hello — I’m the Propel PMO AI Assistant. "
+                    "I can explain AI PMO services, portfolio governance, delivery oversight, "
+                    "and PMO modernization."
+                )
+            }
         ]
-    }
-))
 
-st.plotly_chart(fig_gauge, use_container_width=True)
-st.markdown("---")
-st.subheader("Project Priority Ranking")
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-priority_df = df[["Project", "AI Score"]].sort_values(
-    by="AI Score",
-    ascending=False
-)
+    suggested_questions = [
+        "What does an AI PMO do?",
+        "How can Propel PMO improve portfolio governance?",
+        "How does AI help executive reporting?",
+        "What services does Propel PMO offer?"
+    ]
 
-st.dataframe(priority_df, use_container_width=True)
+    st.write("Try one of these questions:")
+    cols = st.columns(len(suggested_questions))
+    for i, question in enumerate(suggested_questions):
+        if cols[i].button(question):
+            st.session_state.pending_question = question
 
-st.subheader("Project Portfolio")
+    user_input = st.chat_input("Ask a question about Propel PMO...")
 
-risk_filter = st.selectbox(
-    "Filter by Risk Level",
-    ["All", "Low", "Medium", "High"],
-    key="risk_filter_main"
-)
+    if "pending_question" in st.session_state and not user_input:
+        user_input = st.session_state.pending_question
+        del st.session_state.pending_question
 
-filtered_df = df.copy()
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
-if risk_filter != "All":
-    filtered_df = df[df["Risk"] == risk_filter]
+        with st.chat_message("user"):
+            st.markdown(user_input)
 
-display_df = filtered_df[["Project", "Completion", "AI Score", "Risk"]].copy()
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                reply = ask_propell_pmo_bot(
+                    user_question=user_input,
+                    portfolio_context=portfolio_context,
+                    chat_history=st.session_state.messages
+                )
+                st.markdown(reply)
 
-def risk_label(risk):
-    if risk == "Low":
-        return "🟢 Low"
-    elif risk == "Medium":
-        return "🟠 Medium"
-    elif risk == "High":
-        return "🔴 High"
-    return risk
-
-display_df["Risk"] = display_df["Risk"].apply(risk_label)
-
-st.dataframe(display_df, use_container_width=True)
-
-st.subheader("Portfolio Risk Matrix")
-
-matrix_df = filtered_df.copy()
-
-fig_matrix = px.scatter(
-    matrix_df,
-    x="Completion",
-    y="Risk Score",
-    size="AI Score",
-    hover_name="Project"
-)
-
-fig_matrix.update_yaxes(
-    tickmode="array",
-    tickvals=[1, 2, 3],
-    ticktext=["Low", "Medium", "High"]
-)
-
-st.plotly_chart(fig_matrix, use_container_width=True)
+        st.session_state.messages.append({"role": "assistant", "content": reply})
