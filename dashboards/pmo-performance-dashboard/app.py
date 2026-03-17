@@ -493,48 +493,48 @@ with tab2:
             start_chat = st.form_submit_button("Start Chat")
 
         if start_chat:
-    if not name.strip():
-        st.error("Please enter your name.")
-    elif not valid_email(email):
-        st.error("Please enter a valid email address.")
-    else:
-        clean_email = normalize_email(email)
-
-        st.session_state.lead_verified = True
-        st.session_state.lead_name = name.strip()
-        st.session_state.lead_email = clean_email
-        st.session_state.lead_company = company.strip()
-        st.session_state.lead_role = role.strip()
-        st.session_state.lead_interest = interest
-        st.session_state.messages = []
-        st.session_state.pending_question = None
-        st.session_state.show_post_chat_form = False
-
-        if clean_email not in usage_db:
-            usage_db[clean_email] = {
-                "count": 0,
-                "first_seen": datetime.now().isoformat(),
-                "name": name.strip(),
-                "company": company.strip(),
-                "role": role.strip(),
-                "interest": interest
-            }
-            save_usage(usage_db)
-
-        sent, error_message = send_prechat_email(
-            name.strip(),
-            clean_email,
-            company.strip(),
-            role.strip(),
-            interest
-        )
-
-        if sent:
-            st.success("Access granted. Notification email sent.")
-        else:
-            st.error(f"Access granted, but email failed: {error_message}")
-
-        st.rerun()
+            if not name.strip():
+                st.error("Please enter your name.")
+            elif not valid_email(email):
+                st.error("Please enter a valid email address.")
+            else:
+                clean_email = normalize_email(email)
+        
+                st.session_state.lead_verified = True
+                st.session_state.lead_name = name.strip()
+                st.session_state.lead_email = clean_email
+                st.session_state.lead_company = company.strip()
+                st.session_state.lead_role = role.strip()
+                st.session_state.lead_interest = interest
+                st.session_state.messages = []
+                st.session_state.pending_question = None
+                st.session_state.show_post_chat_form = False
+        
+                if clean_email not in usage_db:
+                    usage_db[clean_email] = {
+                        "count": 0,
+                        "first_seen": datetime.now().isoformat(),
+                        "name": name.strip(),
+                        "company": company.strip(),
+                        "role": role.strip(),
+                        "interest": interest
+                    }
+                    save_usage(usage_db)
+        
+                sent, error_message = send_prechat_email(
+                    name.strip(),
+                    clean_email,
+                    company.strip(),
+                    role.strip(),
+                    interest
+                )
+        
+                if sent:
+                    st.success("Access granted. Notification email sent.")
+                else:
+                    st.error(f"Access granted, but email failed: {error_message}")
+        
+                st.rerun()
 
         st.stop()
 
