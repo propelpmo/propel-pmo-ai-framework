@@ -101,7 +101,48 @@ Submitted At: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         return True, None
     except Exception as e:
         return False, str(e)
+def send_followup_email(name, email, company, role, service_interest, timeline, notes):
 
+    sender_email = st.secrets["EMAIL_SENDER"]
+    sender_password = st.secrets["EMAIL_PASSWORD"]
+    receiver_email = "support@propelpmo.com"
+
+    subject = "New Follow-Up Request from Propel PMO AI Chatbot"
+
+    body = f"""
+A visitor submitted a follow-up request from the Propel PMO AI Chatbot.
+
+Name: {name}
+Email: {email}
+Company: {company}
+Role / Title: {role}
+
+Service Interest: {service_interest}
+Timeline: {timeline}
+
+Notes:
+{notes}
+
+Submitted At: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+"""
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = receiver_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
+        server.quit()
+
+        return True, None
+
+    except Exception as e:
+        return False, str(e)
 # =========================================================
 # HELPERS
 # =========================================================
@@ -654,8 +695,22 @@ with tab2:
             submit_followup = st.form_submit_button("Submit Inquiry")
 
         if submit_followup:
-            st.success("Thank you. Your interest has been captured for follow-up.")
-            st.markdown(f"[Continue to Contact Form]({CONTACT_URL})")
+
+            sent, error_message = send_followup_email(
+                followup_name.strip(),
+                followup_email.strip(),
+                followup_company.strip(),
+                followup_role.strip(),
+                service_interest,
+                timeline,
+                notes.strip()
+            )
+        
+            if sent:
+                st.success("Your request has been sent to the Propel PMO team.")
+            else:
+                st.error(f"Email failed: {error_message}")
+                st.markdown(f"[Continue to Contact Form]({CONTACT_URL})")
 
 # =========================================================
 # FOOTER
