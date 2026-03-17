@@ -426,85 +426,172 @@ with tab2:
         "risk monitoring, executive reporting, and Propel PMO services."
     )
 
+    # -----------------------------
+    # REQUIRED SESSION STATE
+    # -----------------------------
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    if "lead_verified" not in st.session_state:
+        st.session_state.lead_verified = False
+
+    if "lead_name" not in st.session_state:
+        st.session_state.lead_name = ""
+
+    if "lead_email" not in st.session_state:
+        st.session_state.lead_email = ""
+
+    if "lead_company" not in st.session_state:
+        st.session_state.lead_company = ""
+
+    if "lead_role" not in st.session_state:
+        st.session_state.lead_role = ""
+
+    if "lead_interest" not in st.session_state:
+        st.session_state.lead_interest = ""
+
+    if "show_post_chat_form" not in st.session_state:
+        st.session_state.show_post_chat_form = False
+
+    if "pending_question" not in st.session_state:
+        st.session_state.pending_question = None
+
     usage_db = load_usage()
 
-    # ---------------------------------------------
+    # -----------------------------
     # PRE-CHAT FORM
-    # ---------------------------------------------
-    # Load usage before the form block
-usage_db = load_usage()
+    # -----------------------------
+    if st.session_state.lead_verified is False:
+        st.info("Please complete this short form to access the chatbot.")
 
-if "lead_verified" not in st.session_state:
-    st.session_state.lead_verified = False
+        with st.form("pre_chat_lead_form"):
+            name = st.text_input("Full Name")
+            email = st.text_input("Business Email")
+            company = st.text_input("Company")
+            role = st.text_input("Role / Title")
+            interest = st.selectbox(
+                "Primary Interest",
+                [
+                    "AI PMO Strategy",
+                    "PMO Governance",
+                    "Portfolio Reporting",
+                    "Delivery Oversight",
+                    "Risk Monitoring",
+                    "PMO Modernization",
+                    "General Inquiry"
+                ]
+            )
+            start_chat = st.form_submit_button("Start Chat")
 
-if "lead_name" not in st.session_state:
-    st.session_state.lead_name = ""
+        if start_chat:
+            if not name.strip():
+                st.error("Please enter your name.")
+            elif not valid_email(email):
+                st.error("Please enter a valid email address.")
+            else:
+                clean_email = normalize_email(email)
 
-if "lead_email" not in st.session_state:
-    st.session_state.lead_email = ""
+                st.session_state.lead_verified = True
+                st.session_state.lead_name = name.strip()
+                st.session_state.lead_email = clean_email
+                st.session_state.lead_company = company.strip()
+                st.session_state.lead_role = role.strip()
+                st.session_state.lead_interest = interest
 
-if "lead_company" not in st.session_state:
-    st.session_state.lead_company = ""
+                if clean_email not in usage_db:
+                    usage_db[clean_email] = {
+                        "count": 0,
+                        "first_seen": datetime.now().isoformat(),
+                        "name": name.strip(),
+                        "company": company.strip(),
+                        "role": role.strip(),
+                        "interest": interest
+                    }
+                    save_usage(usage_db)
 
-if "lead_role" not in st.session_state:
-    st.session_state.lead_role = ""
+                st.rerun()
 
-if "lead_interest" not in st.session_state:
-    st.session_state.lead_interest = ""
+        st.stop()
 
-if not st.session_state.lead_verified:
-    st.info("Please complete this short form to access the chatbot.")
+    # -----------------------------
+    # CHATBOT STARTS HERE
+    # -----------------------------
+    st.success("Chatbot unlocked.")
 
-    with st.form("pre_chat_lead_form"):
-        name = st.text_input("Full Name")
-        email = st.text_input("Business Email")
-        company = st.text_input("Company")
-        role = st.text_input("Role / Title")
-        interest = st.selectbox(
-            "Primary Interest",
-            [
-                "AI PMO Strategy",
-                "PMO Governance",
-                "Portfolio Reporting",
-                "Delivery Oversight",
-                "Risk Monitoring",
-                "PMO Modernization",
-                "General Inquiry"
-            ]
-        )
-        start_chat = st.form_submit_button("Start Chat")
+    visitor_email = st.session_state.lead_email
 
-    if start_chat:
-        if not name.strip():
-            st.error("Please enter your name.")
-        elif not valid_email(email):
-            st.error("Please enter a valid email address.")
+    if visitor_email not in usage_db:
+        usage_db[visitor_email] = {
+            "count": 0,
+            "first_seen": datetime.now().isoformat(),
+            "name": st.session_state.lead_name,
+            "company": st.session_state.lead_company,
+            "role": st.session_state.lead_role,
+            "interest": st.session_state.lead_interest
+        }
+        save_usage(usage_db)
+
+    current_count = int(usage_db[visitor_email].get("count", 0))
+    remaining = max(0, QUESTION_LIMIT - current_count)
+
+    st.write(f"**Visitor:** {st.session_state.lead_name}")
+    st.write(f"**Email:** {st.session_state.lead_email}")
+    st.caption(f"Questions remaining: {remaining} of {QUESTION_LIMIT}")
+
+    if current_count >= QUESTION_LIMIT:
+        st.warning(LIMIT_MESSAGE)
+        st.markdown(f"[Go to Contact Form]({CONTACT_URL})")
+        st.session_state.show_post_chat_form = True
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    suggested_questions = [
+        "What does an AI PMO do?",
+        "How can Propel PMO improve portfolio governance?",
+        "How does AI help executive reporting?",
+        "What PMO modernization services does Propel PMO offer?"
+    ]
+
+    st.write("Try one of these questions:")
+    cols = st.columns(len(suggested_questions))
+
+    for i, question in enumerate(suggested_questions):
+        if cols[i].button(question, key=f"suggested_{i}") and current_count < QUESTION_LIMIT:
+            st.session_state.pending_question = question
+
+    user_input = st.chat_input(
+        "Ask about AI PMO, PMO governance, delivery oversight, risk monitoring, or Propel PMO services",
+        disabled=current_count >= QUESTION_LIMIT
+    )
+
+    if st.session_state.pending_question and not user_input and current_count < QUESTION_LIMIT:
+        user_input = st.session_state.pending_question
+        st.session_state.pending_question = None
+
+    if user_input and current_count < QUESTION_LIMIT:
+        with st.chat_message("user"):
+            st.markdown(user_input)
+        st.session_state.messages.append({"role": "user", "content": user_input})
+
+        if not is_in_scope(user_input):
+            assistant_reply = OUT_OF_SCOPE_MESSAGE
         else:
-            clean_email = normalize_email(email)
+            assistant_reply = generate_chat_response(st.session_state.messages, user_input)
 
-            st.session_state.lead_verified = True
-            st.session_state.lead_name = name.strip()
-            st.session_state.lead_email = clean_email
-            st.session_state.lead_company = company.strip()
-            st.session_state.lead_role = role.strip()
-            st.session_state.lead_interest = interest
+        with st.chat_message("assistant"):
+            st.markdown(assistant_reply)
 
-            if clean_email not in usage_db:
-                usage_db[clean_email] = {
-                    "count": 0,
-                    "first_seen": datetime.now().isoformat(),
-                    "name": name.strip(),
-                    "company": company.strip(),
-                    "role": role.strip(),
-                    "interest": interest
-                }
-                save_usage(usage_db)
+        st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
 
-            st.success("Form submitted successfully. Loading chatbot...")
-            st.rerun()
+        usage_db[visitor_email]["count"] = current_count + 1
+        usage_db[visitor_email]["last_question_at"] = datetime.now().isoformat()
+        save_usage(usage_db)
 
-    st.stop()
-
+        st.info("Need a tailored discussion? Contact Propel PMO for a consultation.")
+        st.markdown(f"[Contact Propel PMO]({CONTACT_URL})")
+        
     # ---------------------------------------------
     # EMAIL LIMIT
     # ---------------------------------------------
