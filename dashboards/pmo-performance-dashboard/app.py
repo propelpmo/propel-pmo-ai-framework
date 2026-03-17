@@ -504,23 +504,6 @@ if not st.session_state.lead_verified:
             st.rerun()
 
     st.stop()
-        # Send email to support
-            sent, error_message = send_prechat_email(
-            name=name.strip(),
-            email=clean_email,
-            company=company.strip(),
-            role=role.strip(),
-            interest=interest
-        )
-
-        if sent:
-            st.success("Access granted. Your information has been sent to our team.")
-        else:
-            st.warning("Access granted, but the notification email could not be sent.")
-
-        st.rerun()
-
-    st.stop()
 
     # ---------------------------------------------
     # EMAIL LIMIT
