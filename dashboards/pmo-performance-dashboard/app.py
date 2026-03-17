@@ -64,10 +64,10 @@ You’ve reached the {QUESTION_LIMIT}-question limit for this AI PMO chatbot.
 
 For a deeper discussion on AI PMO strategy, portfolio governance, executive reporting, or PMO transformation, please contact Propel PMO.
 """
+
 # =========================================================
 # EMAIL HELPER
 # =========================================================
-
 def send_prechat_email(name, email, company, role, interest):
     sender_email = st.secrets["EMAIL_SENDER"]
     sender_password = st.secrets["EMAIL_PASSWORD"]
@@ -101,6 +101,7 @@ Submitted At: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
         return True, None
     except Exception as e:
         return False, str(e)
+
 # =========================================================
 # HELPERS
 # =========================================================
@@ -143,11 +144,6 @@ def is_in_scope(user_text: str) -> bool:
 def get_rag_context(user_query: str) -> str:
     """
     Placeholder for future RAG integration.
-    Later, replace this function with your retrieval logic from:
-    - website pages
-    - blog posts
-    - AI PMO framework
-    - service pages
     """
     return ""
 
@@ -416,59 +412,34 @@ with tab1:
     )
     st.plotly_chart(fig_maturity, use_container_width=True)
 
+
 # =========================================================
 # TAB 2 - AI PMO CHATBOT
 # =========================================================
 with tab2:
+
     st.subheader("AI PMO Chatbot")
     st.caption(
         "This assistant is limited to AI PMO, PMO governance, portfolio delivery, "
         "risk monitoring, executive reporting, and Propel PMO services."
     )
 
-    # -----------------------------
-    # REQUIRED SESSION STATE
-    # -----------------------------
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    if "lead_verified" not in st.session_state:
-        st.session_state.lead_verified = False
-
-    if "lead_name" not in st.session_state:
-        st.session_state.lead_name = ""
-
-    if "lead_email" not in st.session_state:
-        st.session_state.lead_email = ""
-
-    if "lead_company" not in st.session_state:
-        st.session_state.lead_company = ""
-
-    if "lead_role" not in st.session_state:
-        st.session_state.lead_role = ""
-
-    if "lead_interest" not in st.session_state:
-        st.session_state.lead_interest = ""
-
-    if "show_post_chat_form" not in st.session_state:
-        st.session_state.show_post_chat_form = False
-
-    if "pending_question" not in st.session_state:
-        st.session_state.pending_question = None
-
     usage_db = load_usage()
 
-    # -----------------------------
-    # PRE-CHAT FORM
-    # -----------------------------
-    if st.session_state.lead_verified is False:
+    # -----------------------------------------------------
+    # PRE-CHAT LEAD FORM
+    # -----------------------------------------------------
+    if not st.session_state.lead_verified:
+
         st.info("Please complete this short form to access the chatbot.")
 
         with st.form("pre_chat_lead_form"):
+
             name = st.text_input("Full Name")
             email = st.text_input("Business Email")
             company = st.text_input("Company")
             role = st.text_input("Role / Title")
+
             interest = st.selectbox(
                 "Primary Interest",
                 [
@@ -481,14 +452,19 @@ with tab2:
                     "General Inquiry"
                 ]
             )
+
             start_chat = st.form_submit_button("Start Chat")
 
         if start_chat:
+
             if not name.strip():
                 st.error("Please enter your name.")
+
             elif not valid_email(email):
                 st.error("Please enter a valid email address.")
+
             else:
+
                 clean_email = normalize_email(email)
 
                 st.session_state.lead_verified = True
@@ -497,8 +473,10 @@ with tab2:
                 st.session_state.lead_company = company.strip()
                 st.session_state.lead_role = role.strip()
                 st.session_state.lead_interest = interest
+                st.session_state.messages = []
 
                 if clean_email not in usage_db:
+
                     usage_db[clean_email] = {
                         "count": 0,
                         "first_seen": datetime.now().isoformat(),
@@ -507,194 +485,177 @@ with tab2:
                         "role": role.strip(),
                         "interest": interest
                     }
+
                     save_usage(usage_db)
+
+                # Optional email notification
+                # send_prechat_email(name, clean_email, company, role, interest)
 
                 st.rerun()
 
         st.stop()
 
-    # -----------------------------
-    # CHATBOT STARTS HERE
-    # -----------------------------
+    # -----------------------------------------------------
+    # CHATBOT ACTIVE
+    # -----------------------------------------------------
+    visitor_email = st.session_state.lead_email
+
+    if visitor_email not in usage_db:
+
+        usage_db[visitor_email] = {
+            "count": 0,
+            "first_seen": datetime.now().isoformat(),
+            "name": st.session_state.lead_name,
+            "company": st.session_state.lead_company,
+            "role": st.session_state.lead_role,
+            "interest": st.session_state.lead_interest
+        }
+
+        save_usage(usage_db)
+
+    current_count = int(usage_db[visitor_email].get("count", 0))
+    remaining = max(0, QUESTION_LIMIT - current_count)
+
     st.success("Chatbot unlocked.")
 
-    visitor_email = st.session_state.lead_email
-
-    if visitor_email not in usage_db:
-        usage_db[visitor_email] = {
-            "count": 0,
-            "first_seen": datetime.now().isoformat(),
-            "name": st.session_state.lead_name,
-            "company": st.session_state.lead_company,
-            "role": st.session_state.lead_role,
-            "interest": st.session_state.lead_interest
-        }
-        save_usage(usage_db)
-
-    current_count = int(usage_db[visitor_email].get("count", 0))
-    remaining = max(0, QUESTION_LIMIT - current_count)
-
     st.write(f"**Visitor:** {st.session_state.lead_name}")
     st.write(f"**Email:** {st.session_state.lead_email}")
+
     st.caption(f"Questions remaining: {remaining} of {QUESTION_LIMIT}")
 
+    # -----------------------------------------------------
+    # LIMIT REACHED
+    # -----------------------------------------------------
     if current_count >= QUESTION_LIMIT:
+
         st.warning(LIMIT_MESSAGE)
         st.markdown(f"[Go to Contact Form]({CONTACT_URL})")
+
         st.session_state.show_post_chat_form = True
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    suggested_questions = [
-        "What does an AI PMO do?",
-        "How can Propel PMO improve portfolio governance?",
-        "How does AI help executive reporting?",
-        "What PMO modernization services does Propel PMO offer?"
-    ]
-
-    st.write("Try one of these questions:")
-    cols = st.columns(len(suggested_questions))
-
-    for i, question in enumerate(suggested_questions):
-        if cols[i].button(question, key=f"suggested_{i}") and current_count < QUESTION_LIMIT:
-            st.session_state.pending_question = question
-
-    user_input = st.chat_input(
-        "Ask about AI PMO, PMO governance, delivery oversight, risk monitoring, or Propel PMO services",
-        disabled=current_count >= QUESTION_LIMIT
-    )
-
-    if st.session_state.pending_question and not user_input and current_count < QUESTION_LIMIT:
-        user_input = st.session_state.pending_question
-        st.session_state.pending_question = None
-
-    if user_input and current_count < QUESTION_LIMIT:
-        with st.chat_message("user"):
-            st.markdown(user_input)
-        st.session_state.messages.append({"role": "user", "content": user_input})
-
-        if not is_in_scope(user_input):
-            assistant_reply = OUT_OF_SCOPE_MESSAGE
-        else:
-            assistant_reply = generate_chat_response(st.session_state.messages, user_input)
-
-        with st.chat_message("assistant"):
-            st.markdown(assistant_reply)
-
-        st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
-
-        usage_db[visitor_email]["count"] = current_count + 1
-        usage_db[visitor_email]["last_question_at"] = datetime.now().isoformat()
-        save_usage(usage_db)
-
-        st.info("Need a tailored discussion? Contact Propel PMO for a consultation.")
-        st.markdown(f"[Contact Propel PMO]({CONTACT_URL})")
-        
-    # ---------------------------------------------
-    # EMAIL LIMIT
-    # ---------------------------------------------
-    visitor_email = st.session_state.lead_email
-
-    if visitor_email not in usage_db:
-        usage_db[visitor_email] = {
-            "count": 0,
-            "first_seen": datetime.now().isoformat(),
-            "name": st.session_state.lead_name,
-            "company": st.session_state.lead_company,
-            "role": st.session_state.lead_role,
-            "interest": st.session_state.lead_interest
-        }
-        save_usage(usage_db)
-
-    current_count = int(usage_db[visitor_email].get("count", 0))
-    remaining = max(0, QUESTION_LIMIT - current_count)
-
-    st.write(f"**Visitor:** {st.session_state.lead_name}")
-    st.write(f"**Email:** {st.session_state.lead_email}")
-    st.caption(f"Questions remaining: {remaining} of {QUESTION_LIMIT}")
-
-    if current_count >= QUESTION_LIMIT:
-        st.warning(LIMIT_MESSAGE)
-        st.markdown(f"[Go to Contact Form]({CONTACT_URL})")
-        st.session_state.show_post_chat_form = True
-
-    # ---------------------------------------------
+    # -----------------------------------------------------
     # CHAT HISTORY
-    # ---------------------------------------------
+    # -----------------------------------------------------
     for message in st.session_state.messages:
+
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # ---------------------------------------------
+    # -----------------------------------------------------
     # SUGGESTED QUESTIONS
-    # ---------------------------------------------
+    # -----------------------------------------------------
     suggested_questions = [
+
         "What does an AI PMO do?",
         "How can Propel PMO improve portfolio governance?",
         "How does AI help executive reporting?",
         "What PMO modernization services does Propel PMO offer?"
+
     ]
 
     st.write("Try one of these questions:")
+
     cols = st.columns(len(suggested_questions))
+
     for i, question in enumerate(suggested_questions):
-        if cols[i].button(question, key=f"suggested_{i}") and current_count < QUESTION_LIMIT:
+
+        key = f"chatbot_question_{i}"
+
+        if cols[i].button(question, key=key, disabled=current_count >= QUESTION_LIMIT):
             st.session_state.pending_question = question
 
+    # -----------------------------------------------------
+    # CHAT INPUT
+    # -----------------------------------------------------
     user_input = st.chat_input(
         "Ask about AI PMO, PMO governance, delivery oversight, risk monitoring, or Propel PMO services",
         disabled=current_count >= QUESTION_LIMIT
     )
 
     if st.session_state.pending_question and not user_input and current_count < QUESTION_LIMIT:
+
         user_input = st.session_state.pending_question
         st.session_state.pending_question = None
 
-    # ---------------------------------------------
+    # -----------------------------------------------------
     # PROCESS CHAT
-    # ---------------------------------------------
+    # -----------------------------------------------------
     if user_input and current_count < QUESTION_LIMIT:
+
         with st.chat_message("user"):
             st.markdown(user_input)
-        st.session_state.messages.append({"role": "user", "content": user_input})
+
+        st.session_state.messages.append({
+            "role": "user",
+            "content": user_input
+        })
 
         if not is_in_scope(user_input):
+
             assistant_reply = OUT_OF_SCOPE_MESSAGE
+
         else:
-            assistant_reply = generate_chat_response(st.session_state.messages, user_input)
+
+            assistant_reply = generate_chat_response(
+                st.session_state.messages,
+                user_input
+            )
 
         with st.chat_message("assistant"):
             st.markdown(assistant_reply)
 
-        st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": assistant_reply
+        })
 
         usage_db[visitor_email]["count"] = current_count + 1
         usage_db[visitor_email]["last_question_at"] = datetime.now().isoformat()
+
         save_usage(usage_db)
 
         new_remaining = max(0, QUESTION_LIMIT - usage_db[visitor_email]["count"])
+
         st.caption(f"Questions remaining: {new_remaining} of {QUESTION_LIMIT}")
 
-        st.info("Need a tailored discussion? Contact Propel PMO for a consultation.")
+        st.info(
+            "Need a tailored discussion? Contact Propel PMO for a consultation."
+        )
+
         st.markdown(f"[Contact Propel PMO]({CONTACT_URL})")
 
         if usage_db[visitor_email]["count"] >= QUESTION_LIMIT:
             st.session_state.show_post_chat_form = True
 
-    # ---------------------------------------------
-    # POST-CHAT LEAD FORM
-    # ---------------------------------------------
+    # -----------------------------------------------------
+    # POST CHAT LEAD FORM
+    # -----------------------------------------------------
     if st.session_state.show_post_chat_form or current_count >= QUESTION_LIMIT:
+
         st.markdown("---")
         st.subheader("Request a Follow-Up")
 
         with st.form("post_chat_sales_form"):
-            followup_name = st.text_input("Name", value=st.session_state.lead_name)
-            followup_email = st.text_input("Email", value=st.session_state.lead_email)
-            followup_company = st.text_input("Company", value=st.session_state.lead_company)
-            followup_role = st.text_input("Role / Title", value=st.session_state.lead_role)
+
+            followup_name = st.text_input(
+                "Name",
+                value=st.session_state.lead_name
+            )
+
+            followup_email = st.text_input(
+                "Email",
+                value=st.session_state.lead_email
+            )
+
+            followup_company = st.text_input(
+                "Company",
+                value=st.session_state.lead_company
+            )
+
+            followup_role = st.text_input(
+                "Role / Title",
+                value=st.session_state.lead_role
+            )
 
             service_interest = st.selectbox(
                 "Service of Interest",
@@ -710,7 +671,12 @@ with tab2:
 
             timeline = st.selectbox(
                 "Desired Timeline",
-                ["Immediately", "This Month", "This Quarter", "Exploring Options"]
+                [
+                    "Immediately",
+                    "This Month",
+                    "This Quarter",
+                    "Exploring Options"
+                ]
             )
 
             notes = st.text_area(
@@ -721,14 +687,20 @@ with tab2:
             submit_followup = st.form_submit_button("Submit Inquiry")
 
         if submit_followup:
-            st.success("Thank you. Your interest has been captured for follow-up.")
+
+            st.success(
+                "Thank you. Your interest has been captured for follow-up."
+            )
+
             st.markdown(f"[Continue to Contact Form]({CONTACT_URL})")
+
 
 # =========================================================
 # FOOTER
 # =========================================================
 st.markdown("---")
+
 st.caption(
-    "Note: Email-based usage limits are enabled. IP-based control usually requires a backend "
-    "or reverse proxy and is not reliably available in basic Streamlit deployments."
+    "Note: Email-based usage limits are enabled. IP-based control usually requires "
+    "a backend or reverse proxy and is not reliably available in basic Streamlit deployments."
 )
