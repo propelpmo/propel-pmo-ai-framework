@@ -505,7 +505,7 @@ if not st.session_state.lead_verified:
 
     st.stop()
         # Send email to support
-        sent, error_message = send_prechat_email(
+            sent, error_message = send_prechat_email(
             name=name.strip(),
             email=clean_email,
             company=company.strip(),
