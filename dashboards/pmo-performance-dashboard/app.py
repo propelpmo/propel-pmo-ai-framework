@@ -1,12 +1,16 @@
 import os
 import re
 import json
+import smtplib
 from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 try:
     from openai import OpenAI
@@ -22,7 +26,7 @@ st.set_page_config(page_title="Propel PMO Command Center", layout="wide")
 # APP CONFIG
 # =========================================================
 USAGE_FILE = "chat_usage.json"
-QUESTION_LIMIT = 3
+QUESTION_LIMIT = 1
 CONTACT_URL = "https://propelpmo.com/contact/"
 
 SYSTEM_PROMPT = """
@@ -60,7 +64,43 @@ You’ve reached the {QUESTION_LIMIT}-question limit for this AI PMO chatbot.
 
 For a deeper discussion on AI PMO strategy, portfolio governance, executive reporting, or PMO transformation, please contact Propel PMO.
 """
+# =========================================================
+# EMAIL HELPER
+# =========================================================
 
+def send_prechat_email(name, email, company, role, interest):
+    sender_email = st.secrets["EMAIL_SENDER"]
+    sender_password = st.secrets["EMAIL_PASSWORD"]
+    receiver_email = "support@propelpmo.com"
+
+    subject = "New AI Chatbot Access Request - Propel PMO"
+
+    body = f"""
+A new visitor requested access to the Propel PMO AI Chatbot.
+
+Name: {name}
+Email: {email}
+Company: {company}
+Role / Title: {role}
+Primary Interest: {interest}
+Submitted At: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+"""
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = receiver_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
+        server.quit()
+        return True, None
+    except Exception as e:
+        return False, str(e)
 # =========================================================
 # HELPERS
 # =========================================================
@@ -391,60 +431,76 @@ with tab2:
     # ---------------------------------------------
     # PRE-CHAT FORM
     # ---------------------------------------------
-    if not st.session_state.lead_verified:
-        st.info("Please complete this short form to access the chatbot.")
+   if not st.session_state.lead_verified:
+    st.info("Please complete this short form to access the chatbot.")
 
-        with st.form("pre_chat_lead_form"):
-            name = st.text_input("Full Name")
-            email = st.text_input("Business Email")
-            company = st.text_input("Company")
-            role = st.text_input("Role / Title")
-            interest = st.selectbox(
-                "Primary Interest",
-                [
-                    "AI PMO Strategy",
-                    "PMO Governance",
-                    "Portfolio Reporting",
-                    "Delivery Oversight",
-                    "Risk Monitoring",
-                    "PMO Modernization",
-                    "General Inquiry"
-                ]
-            )
-            start_chat = st.form_submit_button("Start Chat")
+    with st.form("pre_chat_lead_form"):
+        name = st.text_input("Full Name")
+        email = st.text_input("Business Email")
+        company = st.text_input("Company")
+        role = st.text_input("Role / Title")
+        interest = st.selectbox(
+            "Primary Interest",
+            [
+                "AI PMO Strategy",
+                "PMO Governance",
+                "Portfolio Reporting",
+                "Delivery Oversight",
+                "Risk Monitoring",
+                "PMO Modernization",
+                "General Inquiry"
+            ]
+        )
+        start_chat = st.form_submit_button("Start Chat")
 
-        if start_chat:
-            if not name.strip():
-                st.error("Please enter your name.")
-                st.stop()
+    if start_chat:
+        if not name.strip():
+            st.error("Please enter your name.")
+            st.stop()
 
-            if not valid_email(email):
-                st.error("Please enter a valid email address.")
-                st.stop()
+        if not valid_email(email):
+            st.error("Please enter a valid email address.")
+            st.stop()
 
-            clean_email = normalize_email(email)
+        clean_email = normalize_email(email)
 
-            st.session_state.lead_verified = True
-            st.session_state.lead_name = name.strip()
-            st.session_state.lead_email = clean_email
-            st.session_state.lead_company = company.strip()
-            st.session_state.lead_role = role.strip()
-            st.session_state.lead_interest = interest
+        # Save session values
+        st.session_state.lead_verified = True
+        st.session_state.lead_name = name.strip()
+        st.session_state.lead_email = clean_email
+        st.session_state.lead_company = company.strip()
+        st.session_state.lead_role = role.strip()
+        st.session_state.lead_interest = interest
 
-            if clean_email not in usage_db:
-                usage_db[clean_email] = {
-                    "count": 0,
-                    "first_seen": datetime.now().isoformat(),
-                    "name": name.strip(),
-                    "company": company.strip(),
-                    "role": role.strip(),
-                    "interest": interest
-                }
-                save_usage(usage_db)
+        # Save local usage record
+        if clean_email not in usage_db:
+            usage_db[clean_email] = {
+                "count": 0,
+                "first_seen": datetime.now().isoformat(),
+                "name": name.strip(),
+                "company": company.strip(),
+                "role": role.strip(),
+                "interest": interest
+            }
+            save_usage(usage_db)
 
-            st.rerun()
+        # Send email to support
+        sent, error_message = send_prechat_email(
+            name=name.strip(),
+            email=clean_email,
+            company=company.strip(),
+            role=role.strip(),
+            interest=interest
+        )
 
-        st.stop()
+        if sent:
+            st.success("Access granted. Your information has been sent to our team.")
+        else:
+            st.warning("Access granted, but the notification email could not be sent.")
+
+        st.rerun()
+
+    st.stop()
 
     # ---------------------------------------------
     # EMAIL LIMIT
