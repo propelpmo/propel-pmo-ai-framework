@@ -432,7 +432,7 @@ with tab2:
     # PRE-CHAT FORM
     # ---------------------------------------------
     if not st.session_state.lead_verified:
-    st.info("Please complete this short form to access the chatbot.")
+        st.info("Please complete this short form to access the chatbot.")
 
     with st.form("pre_chat_lead_form"):
         name = st.text_input("Full Name")
