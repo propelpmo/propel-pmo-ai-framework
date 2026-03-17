@@ -271,10 +271,9 @@ risk_map = {"Low": 1, "Medium": 2, "High": 3}
 df["Risk Score"] = df["Risk"].map(risk_map)
 
 # =========================================================
-# TABS - ONLY 2
+# TABS
 # =========================================================
 tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
-
 # =========================================================
 # TAB 1 - DASHBOARD
 # =========================================================
@@ -295,6 +294,7 @@ with tab1:
 
     st.subheader("Portfolio RAG Distribution")
     rag_counts = df["RAG Status"].value_counts()
+
     fig_rag = px.pie(
         values=rag_counts.values,
         names=rag_counts.index,
@@ -310,7 +310,8 @@ with tab1:
 
     st.subheader("Project Portfolio")
     styled_df = df[["Project", "Completion", "AI Score", "Risk", "RAG Status"]].style.map(
-        rag_color, subset=["RAG Status"]
+        rag_color,
+        subset=["RAG Status"]
     )
     st.dataframe(styled_df, use_container_width=True)
 
@@ -319,6 +320,7 @@ with tab1:
         "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
         "Score": [68, 72, 75, 79, 83, 87]
     })
+
     fig_trend = px.line(
         trend,
         x="Month",
@@ -358,6 +360,7 @@ with tab1:
         },
         title="Portfolio Risk vs Completion"
     )
+
     fig_heatmap.update_yaxes(
         tickmode="array",
         tickvals=[1, 2, 3],
@@ -384,6 +387,7 @@ with tab1:
             name="Portfolio Risk"
         )
     )
+
     fig_radar.update_layout(
         polar=dict(
             radialaxis=dict(
@@ -400,6 +404,7 @@ with tab1:
         "Dimension": ["Governance", "Delivery", "Reporting", "Risk", "Automation"],
         "Score": [3.8, 4.1, 4.0, 3.6, 3.4]
     })
+
     overall_maturity = round(maturity_df["Score"].mean(), 1)
     st.metric("Overall PMO Maturity", f"{overall_maturity} / 5")
 
@@ -411,13 +416,10 @@ with tab1:
         range_y=[0, 5]
     )
     st.plotly_chart(fig_maturity, use_container_width=True)
-
-
-# =========================================================
+    # =========================================================
 # TAB 2 - AI PMO CHATBOT
 # =========================================================
 with tab2:
-
     st.subheader("AI PMO Chatbot")
     st.caption(
         "This assistant is limited to AI PMO, PMO governance, portfolio delivery, "
@@ -430,11 +432,9 @@ with tab2:
     # PRE-CHAT LEAD FORM
     # -----------------------------------------------------
     if not st.session_state.lead_verified:
-
         st.info("Please complete this short form to access the chatbot.")
 
         with st.form("pre_chat_lead_form"):
-
             name = st.text_input("Full Name")
             email = st.text_input("Business Email")
             company = st.text_input("Company")
@@ -456,15 +456,11 @@ with tab2:
             start_chat = st.form_submit_button("Start Chat")
 
         if start_chat:
-
             if not name.strip():
                 st.error("Please enter your name.")
-
             elif not valid_email(email):
                 st.error("Please enter a valid email address.")
-
             else:
-
                 clean_email = normalize_email(email)
 
                 st.session_state.lead_verified = True
@@ -474,9 +470,10 @@ with tab2:
                 st.session_state.lead_role = role.strip()
                 st.session_state.lead_interest = interest
                 st.session_state.messages = []
+                st.session_state.pending_question = None
+                st.session_state.show_post_chat_form = False
 
                 if clean_email not in usage_db:
-
                     usage_db[clean_email] = {
                         "count": 0,
                         "first_seen": datetime.now().isoformat(),
@@ -485,11 +482,20 @@ with tab2:
                         "role": role.strip(),
                         "interest": interest
                     }
-
                     save_usage(usage_db)
 
-                # Optional email notification
-                # send_prechat_email(name, clean_email, company, role, interest)
+                sent, error_message = send_prechat_email(
+                    name.strip(),
+                    clean_email,
+                    company.strip(),
+                    role.strip(),
+                    interest
+                )
+
+                if sent:
+                    st.success("Access granted. Notification email sent.")
+                else:
+                    st.error(f"Access granted, but email failed: {error_message}")
 
                 st.rerun()
 
@@ -501,7 +507,6 @@ with tab2:
     visitor_email = st.session_state.lead_email
 
     if visitor_email not in usage_db:
-
         usage_db[visitor_email] = {
             "count": 0,
             "first_seen": datetime.now().isoformat(),
@@ -510,34 +515,28 @@ with tab2:
             "role": st.session_state.lead_role,
             "interest": st.session_state.lead_interest
         }
-
         save_usage(usage_db)
 
     current_count = int(usage_db[visitor_email].get("count", 0))
     remaining = max(0, QUESTION_LIMIT - current_count)
 
     st.success("Chatbot unlocked.")
-
     st.write(f"**Visitor:** {st.session_state.lead_name}")
     st.write(f"**Email:** {st.session_state.lead_email}")
-
     st.caption(f"Questions remaining: {remaining} of {QUESTION_LIMIT}")
 
     # -----------------------------------------------------
     # LIMIT REACHED
     # -----------------------------------------------------
     if current_count >= QUESTION_LIMIT:
-
         st.warning(LIMIT_MESSAGE)
         st.markdown(f"[Go to Contact Form]({CONTACT_URL})")
-
         st.session_state.show_post_chat_form = True
 
     # -----------------------------------------------------
     # CHAT HISTORY
     # -----------------------------------------------------
     for message in st.session_state.messages:
-
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
@@ -545,22 +544,17 @@ with tab2:
     # SUGGESTED QUESTIONS
     # -----------------------------------------------------
     suggested_questions = [
-
         "What does an AI PMO do?",
         "How can Propel PMO improve portfolio governance?",
         "How does AI help executive reporting?",
         "What PMO modernization services does Propel PMO offer?"
-
     ]
 
     st.write("Try one of these questions:")
-
     cols = st.columns(len(suggested_questions))
 
     for i, question in enumerate(suggested_questions):
-
         key = f"chatbot_question_{i}"
-
         if cols[i].button(question, key=key, disabled=current_count >= QUESTION_LIMIT):
             st.session_state.pending_question = question
 
@@ -573,7 +567,6 @@ with tab2:
     )
 
     if st.session_state.pending_question and not user_input and current_count < QUESTION_LIMIT:
-
         user_input = st.session_state.pending_question
         st.session_state.pending_question = None
 
@@ -581,7 +574,6 @@ with tab2:
     # PROCESS CHAT
     # -----------------------------------------------------
     if user_input and current_count < QUESTION_LIMIT:
-
         with st.chat_message("user"):
             st.markdown(user_input)
 
@@ -591,11 +583,8 @@ with tab2:
         })
 
         if not is_in_scope(user_input):
-
             assistant_reply = OUT_OF_SCOPE_MESSAGE
-
         else:
-
             assistant_reply = generate_chat_response(
                 st.session_state.messages,
                 user_input
@@ -611,17 +600,12 @@ with tab2:
 
         usage_db[visitor_email]["count"] = current_count + 1
         usage_db[visitor_email]["last_question_at"] = datetime.now().isoformat()
-
         save_usage(usage_db)
 
         new_remaining = max(0, QUESTION_LIMIT - usage_db[visitor_email]["count"])
-
         st.caption(f"Questions remaining: {new_remaining} of {QUESTION_LIMIT}")
 
-        st.info(
-            "Need a tailored discussion? Contact Propel PMO for a consultation."
-        )
-
+        st.info("Need a tailored discussion? Contact Propel PMO for a consultation.")
         st.markdown(f"[Contact Propel PMO]({CONTACT_URL})")
 
         if usage_db[visitor_email]["count"] >= QUESTION_LIMIT:
@@ -631,31 +615,14 @@ with tab2:
     # POST CHAT LEAD FORM
     # -----------------------------------------------------
     if st.session_state.show_post_chat_form or current_count >= QUESTION_LIMIT:
-
         st.markdown("---")
         st.subheader("Request a Follow-Up")
 
         with st.form("post_chat_sales_form"):
-
-            followup_name = st.text_input(
-                "Name",
-                value=st.session_state.lead_name
-            )
-
-            followup_email = st.text_input(
-                "Email",
-                value=st.session_state.lead_email
-            )
-
-            followup_company = st.text_input(
-                "Company",
-                value=st.session_state.lead_company
-            )
-
-            followup_role = st.text_input(
-                "Role / Title",
-                value=st.session_state.lead_role
-            )
+            followup_name = st.text_input("Name", value=st.session_state.lead_name)
+            followup_email = st.text_input("Email", value=st.session_state.lead_email)
+            followup_company = st.text_input("Company", value=st.session_state.lead_company)
+            followup_role = st.text_input("Role / Title", value=st.session_state.lead_role)
 
             service_interest = st.selectbox(
                 "Service of Interest",
@@ -687,19 +654,13 @@ with tab2:
             submit_followup = st.form_submit_button("Submit Inquiry")
 
         if submit_followup:
-
-            st.success(
-                "Thank you. Your interest has been captured for follow-up."
-            )
-
+            st.success("Thank you. Your interest has been captured for follow-up.")
             st.markdown(f"[Continue to Contact Form]({CONTACT_URL})")
-
 
 # =========================================================
 # FOOTER
 # =========================================================
 st.markdown("---")
-
 st.caption(
     "Note: Email-based usage limits are enabled. IP-based control usually requires "
     "a backend or reverse proxy and is not reliably available in basic Streamlit deployments."
