@@ -11,6 +11,7 @@ import streamlit as st
 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import requests
 
 try:
     from openai import OpenAI
@@ -66,13 +67,43 @@ For a deeper discussion on AI PMO strategy, portfolio governance, executive repo
 """
 
 # =========================================================
-# EMAIL HELPER
 # =========================================================
-def send_prechat_email(name, email, company, role, interest):
-    sender_email = st.secrets["EMAIL_SENDER"]
-    sender_password = st.secrets["EMAIL_PASSWORD"]
-    receiver_email = "support@propelpmo.com"
+# EMAIL HELPER (RESEND)
+# =========================================================
+def send_email(subject, body):
+    api_key = st.secrets["RESEND_API_KEY"]
+    receiver = "support@propelpmo.com"
 
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "from": "onboarding@resend.dev",   # use this for testing first
+        "to": [receiver],
+        "subject": subject,
+        "text": body
+    }
+
+    try:
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+
+        if response.status_code in [200, 201]:
+            return True, None
+        else:
+            return False, response.text
+
+    except Exception as e:
+        return False, str(e)
+
+
+def send_prechat_email(name, email, company, role, interest):
     subject = "New AI Chatbot Access Request - Propel PMO"
 
     body = f"""
@@ -85,29 +116,11 @@ Role / Title: {role}
 Primary Interest: {interest}
 Submitted At: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 """
+    return send_email(subject, body)
 
-    msg = MIMEMultipart()
-    msg["From"] = sender_email
-    msg["To"] = receiver_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
 
-    try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, receiver_email, msg.as_string())
-        server.quit()
-        return True, None
-    except Exception as e:
-        return False, str(e)
 def send_followup_email(name, email, company, role, service_interest, timeline, notes):
-
-    sender_email = st.secrets["EMAIL_SENDER"]
-    sender_password = st.secrets["EMAIL_PASSWORD"]
-    receiver_email = "support@propelpmo.com"
-
-    subject = "New Follow-Up Request from Propel PMO AI Chatbot"
+    subject = "New Follow-Up Request - Propel PMO"
 
     body = f"""
 A visitor submitted a follow-up request from the Propel PMO AI Chatbot.
@@ -125,24 +138,7 @@ Notes:
 
 Submitted At: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 """
-
-    msg = MIMEMultipart()
-    msg["From"] = sender_email
-    msg["To"] = receiver_email
-    msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
-
-    try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.sendmail(sender_email, receiver_email, msg.as_string())
-        server.quit()
-
-        return True, None
-
-    except Exception as e:
-        return False, str(e)
+    return send_email(subject, body)
 # =========================================================
 # HELPERS
 # =========================================================
@@ -497,48 +493,48 @@ with tab2:
             start_chat = st.form_submit_button("Start Chat")
 
         if start_chat:
-            if not name.strip():
-                st.error("Please enter your name.")
-            elif not valid_email(email):
-                st.error("Please enter a valid email address.")
-            else:
-                clean_email = normalize_email(email)
+    if not name.strip():
+        st.error("Please enter your name.")
+    elif not valid_email(email):
+        st.error("Please enter a valid email address.")
+    else:
+        clean_email = normalize_email(email)
 
-                st.session_state.lead_verified = True
-                st.session_state.lead_name = name.strip()
-                st.session_state.lead_email = clean_email
-                st.session_state.lead_company = company.strip()
-                st.session_state.lead_role = role.strip()
-                st.session_state.lead_interest = interest
-                st.session_state.messages = []
-                st.session_state.pending_question = None
-                st.session_state.show_post_chat_form = False
+        st.session_state.lead_verified = True
+        st.session_state.lead_name = name.strip()
+        st.session_state.lead_email = clean_email
+        st.session_state.lead_company = company.strip()
+        st.session_state.lead_role = role.strip()
+        st.session_state.lead_interest = interest
+        st.session_state.messages = []
+        st.session_state.pending_question = None
+        st.session_state.show_post_chat_form = False
 
-                if clean_email not in usage_db:
-                    usage_db[clean_email] = {
-                        "count": 0,
-                        "first_seen": datetime.now().isoformat(),
-                        "name": name.strip(),
-                        "company": company.strip(),
-                        "role": role.strip(),
-                        "interest": interest
-                    }
-                    save_usage(usage_db)
+        if clean_email not in usage_db:
+            usage_db[clean_email] = {
+                "count": 0,
+                "first_seen": datetime.now().isoformat(),
+                "name": name.strip(),
+                "company": company.strip(),
+                "role": role.strip(),
+                "interest": interest
+            }
+            save_usage(usage_db)
 
-                sent, error_message = send_prechat_email(
-                    name.strip(),
-                    clean_email,
-                    company.strip(),
-                    role.strip(),
-                    interest
-                )
+        sent, error_message = send_prechat_email(
+            name.strip(),
+            clean_email,
+            company.strip(),
+            role.strip(),
+            interest
+        )
 
-                if sent:
-                    st.success("Access granted. Notification email sent.")
-                else:
-                    st.error(f"Access granted, but email failed: {error_message}")
+        if sent:
+            st.success("Access granted. Notification email sent.")
+        else:
+            st.error(f"Access granted, but email failed: {error_message}")
 
-                st.rerun()
+        st.rerun()
 
         st.stop()
 
@@ -695,7 +691,6 @@ with tab2:
             submit_followup = st.form_submit_button("Submit Inquiry")
 
         if submit_followup:
-
             sent, error_message = send_followup_email(
                 followup_name.strip(),
                 followup_email.strip(),
@@ -707,10 +702,11 @@ with tab2:
             )
         
             if sent:
-                st.success("Your request has been sent to the Propel PMO team.")
+                st.success("Your follow-up request has been sent to the Propel PMO team.")
             else:
-                st.error(f"Email failed: {error_message}")
-                st.markdown(f"[Continue to Contact Form]({CONTACT_URL})")
+                st.error(f"Follow-up submitted, but email failed: {error_message}")
+        
+            st.markdown(f"[Continue to Contact Form]({CONTACT_URL})")
 
 # =========================================================
 # FOOTER
