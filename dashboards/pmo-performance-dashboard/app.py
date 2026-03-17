@@ -431,8 +431,29 @@ with tab2:
     # ---------------------------------------------
     # PRE-CHAT FORM
     # ---------------------------------------------
-    if not st.session_state.lead_verified:
-        st.info("Please complete this short form to access the chatbot.")
+    # Load usage before the form block
+usage_db = load_usage()
+
+if "lead_verified" not in st.session_state:
+    st.session_state.lead_verified = False
+
+if "lead_name" not in st.session_state:
+    st.session_state.lead_name = ""
+
+if "lead_email" not in st.session_state:
+    st.session_state.lead_email = ""
+
+if "lead_company" not in st.session_state:
+    st.session_state.lead_company = ""
+
+if "lead_role" not in st.session_state:
+    st.session_state.lead_role = ""
+
+if "lead_interest" not in st.session_state:
+    st.session_state.lead_interest = ""
+
+if not st.session_state.lead_verified:
+    st.info("Please complete this short form to access the chatbot.")
 
     with st.form("pre_chat_lead_form"):
         name = st.text_input("Full Name")
@@ -456,34 +477,33 @@ with tab2:
     if start_chat:
         if not name.strip():
             st.error("Please enter your name.")
-            st.stop()
-
-        if not valid_email(email):
+        elif not valid_email(email):
             st.error("Please enter a valid email address.")
-            st.stop()
+        else:
+            clean_email = normalize_email(email)
 
-        clean_email = normalize_email(email)
+            st.session_state.lead_verified = True
+            st.session_state.lead_name = name.strip()
+            st.session_state.lead_email = clean_email
+            st.session_state.lead_company = company.strip()
+            st.session_state.lead_role = role.strip()
+            st.session_state.lead_interest = interest
 
-        # Save session values
-        st.session_state.lead_verified = True
-        st.session_state.lead_name = name.strip()
-        st.session_state.lead_email = clean_email
-        st.session_state.lead_company = company.strip()
-        st.session_state.lead_role = role.strip()
-        st.session_state.lead_interest = interest
+            if clean_email not in usage_db:
+                usage_db[clean_email] = {
+                    "count": 0,
+                    "first_seen": datetime.now().isoformat(),
+                    "name": name.strip(),
+                    "company": company.strip(),
+                    "role": role.strip(),
+                    "interest": interest
+                }
+                save_usage(usage_db)
 
-        # Save local usage record
-        if clean_email not in usage_db:
-            usage_db[clean_email] = {
-                "count": 0,
-                "first_seen": datetime.now().isoformat(),
-                "name": name.strip(),
-                "company": company.strip(),
-                "role": role.strip(),
-                "interest": interest
-            }
-            save_usage(usage_db)
+            st.success("Form submitted successfully. Loading chatbot...")
+            st.rerun()
 
+    st.stop()
         # Send email to support
         sent, error_message = send_prechat_email(
             name=name.strip(),
