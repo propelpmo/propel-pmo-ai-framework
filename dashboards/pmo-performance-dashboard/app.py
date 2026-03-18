@@ -400,7 +400,7 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     st.plotly_chart(fig_rag, use_container_width=True)
 
     st.subheader("Project Portfolio")
-     st.caption(
+    st.caption(
         "This table shows each project’s completion, AI score, risk level, and RAG status. "
         "Use it to compare projects individually and identify which efforts may need closer review."
     )
