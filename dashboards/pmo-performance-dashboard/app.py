@@ -380,7 +380,7 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         st.info(summary)    
 
     st.subheader("Portfolio RAG Distribution")
-     st.caption(
+    st.caption(
         "This chart shows how many projects are Green, Amber, or Red. "
         "Green means healthy, Amber means watch closely, and Red means leadership attention may be needed."
     )
