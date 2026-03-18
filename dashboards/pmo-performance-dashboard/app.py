@@ -328,6 +328,49 @@ with tab1:
     col4.metric("Average AI Score", round(df["AI Score"].mean(), 1))
     col5.metric("Green Projects", green_count)
     col6.metric("Red Projects", red_count)
+    # =========================================================
+    # EXECUTIVE SUMMARY BUTTON (NO OPENAI)
+    # =========================================================
+    st.subheader("AI Executive Summary")
+    st.caption("AI-assisted executive summary based on current portfolio data.")
+
+    if st.button("Generate AI Executive Summary"):
+        avg_completion = int(df["Completion"].mean())
+        total_projects = len(df)
+        avg_ai_score = round(df["AI Score"].mean(), 1)
+
+        red_count = int((df["RAG Status"] == "Red").sum())
+        amber_count = int((df["RAG Status"] == "Amber").sum())
+        green_count = int((df["RAG Status"] == "Green").sum())
+
+        top_project_row = df.loc[df["AI Score"].idxmax()]
+        top_project = top_project_row["Project"]
+        top_project_score = top_project_row["AI Score"]
+
+        if avg_completion >= 75:
+            delivery_status = "strong"
+        elif avg_completion >= 60:
+            delivery_status = "moderate"
+        else:
+            delivery_status = "below target"
+
+        if red_count >= 2:
+            status_message = f"There are {red_count} red projects requiring leadership attention."
+        elif red_count == 1:
+            status_message = "There is 1 red project requiring leadership attention."
+        else:
+            status_message = "No red projects are currently flagged."
+
+        summary = f"""
+The current portfolio includes {total_projects} active initiatives with an average completion rate of {avg_completion}%, indicating overall delivery performance is {delivery_status}.
+
+Portfolio health shows {green_count} green, {amber_count} amber, and {red_count} red projects. {status_message}
+
+The average AI project score is {avg_ai_score}, with {top_project} currently ranked highest at {top_project_score}. This indicates continued focus on higher-priority strategic initiatives.
+
+Overall, the portfolio reflects a balanced view of delivery progress, prioritization, and execution health, with the greatest opportunity centered on close monitoring of red and amber efforts and acceleration of in-flight programs.
+"""
+        st.info(summary)    
 
     st.subheader("Portfolio RAG Distribution")
     rag_counts = df["RAG Status"].value_counts()
