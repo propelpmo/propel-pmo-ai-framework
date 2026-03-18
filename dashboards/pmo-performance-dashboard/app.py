@@ -316,6 +316,10 @@ tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
 # =========================================================
 with tab1:
     st.subheader("Executive Scorecard")
+    st.caption(
+        "This section gives a quick snapshot of overall portfolio health. "
+        "Use it to review total projects, average completion, AI score, and the number of green or red initiatives at a glance."
+    )
 
     red_count = int((df["RAG Status"] == "Red").sum())
     amber_count = int((df["RAG Status"] == "Amber").sum())
@@ -332,7 +336,10 @@ with tab1:
     # EXECUTIVE SUMMARY BUTTON (NO OPENAI)
     # =========================================================
     st.subheader("AI Executive Summary")
-    st.caption("AI-assisted executive summary based on current portfolio data.")
+     st.caption(
+        "Click the button to generate a plain-language summary of the current portfolio. "
+        "This gives leadership a quick narrative view of delivery health, prioritization, and risk without reading every chart."
+    )
 
     if st.button("Generate AI Executive Summary"):
         avg_completion = int(df["Completion"].mean())
@@ -373,6 +380,10 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         st.info(summary)    
 
     st.subheader("Portfolio RAG Distribution")
+     st.caption(
+        "This chart shows how many projects are Green, Amber, or Red. "
+        "Green means healthy, Amber means watch closely, and Red means leadership attention may be needed."
+    )
     rag_counts = df["RAG Status"].value_counts()
 
     fig_rag = px.pie(
@@ -389,6 +400,10 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     st.plotly_chart(fig_rag, use_container_width=True)
 
     st.subheader("Project Portfolio")
+     st.caption(
+        "This table shows each project’s completion, AI score, risk level, and RAG status. "
+        "Use it to compare projects individually and identify which efforts may need closer review."
+    )
     styled_df = df[["Project", "Completion", "AI Score", "Risk", "RAG Status"]].style.map(
         rag_color,
         subset=["RAG Status"]
@@ -396,6 +411,10 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     st.dataframe(styled_df, use_container_width=True)
 
     st.subheader("Delivery Trend")
+    st.caption(
+        "This trend shows how delivery performance changes over time. "
+        "An upward trend suggests improving execution, while a flat or declining trend may indicate delivery challenges."
+    )
     trend = pd.DataFrame({
         "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
         "Score": [68, 72, 75, 79, 83, 87]
@@ -411,6 +430,10 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     st.plotly_chart(fig_trend, use_container_width=True)
 
     st.subheader("AI Project Scoring")
+    st.caption(
+        "This chart ranks projects by AI score or strategic priority. "
+        "Higher scores suggest stronger alignment to business value, transformation goals, or AI-driven focus areas."
+    )
     fig_score = px.bar(
         df,
         x="Project",
@@ -420,6 +443,10 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     st.plotly_chart(fig_score, use_container_width=True)
 
     st.subheader("Portfolio Risk Heatmap")
+    st.caption(
+        "This view compares project completion against risk level. "
+        "Projects with high risk and low completion may need the most attention, while lower-risk and higher-completion projects are generally in better shape."
+    )
     fig_heatmap = px.scatter(
         df,
         x="Completion",
@@ -449,6 +476,10 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
     st.subheader("Risk Radar")
+    st.caption(
+        "This chart shows average risk across schedule, budget, delivery, and data dimensions. "
+        "The farther the shape extends outward, the higher the overall risk in that area."
+    )
     radar_values = [
         df["Schedule Risk"].mean(),
         df["Budget Risk"].mean(),
@@ -480,6 +511,10 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     st.plotly_chart(fig_radar, use_container_width=True)
 
     st.subheader("PMO Maturity Indicator")
+    st.caption(
+        "This section shows how mature the PMO is across key capabilities such as governance, delivery, reporting, risk, and automation. "
+        "Higher scores indicate stronger and more established PMO practices."
+    )
     maturity_df = pd.DataFrame({
         "Dimension": ["Governance", "Delivery", "Reporting", "Risk", "Automation"],
         "Score": [3.8, 4.1, 4.0, 3.6, 3.4]
