@@ -336,7 +336,7 @@ with tab1:
     # EXECUTIVE SUMMARY BUTTON (NO OPENAI)
     # =========================================================
     st.subheader("AI Executive Summary")
-     st.caption(
+    st.caption(
         "Click the button to generate a plain-language summary of the current portfolio. "
         "This gives leadership a quick narrative view of delivery health, prioritization, and risk without reading every chart."
     )
