@@ -389,9 +389,66 @@ df["Risk Score"] = df["Risk"].map(risk_map)
 # =========================================================
 # RISK PREDICTION AGENT V1
 # =========================================================
-risk_predictions = df.apply(predict_project_risk, axis=1)
-df = pd.concat([df, risk_predictions], axis=1)
+#risk_predictions = df.apply(predict_project_risk, axis=1)
+#df = pd.concat([df, risk_predictions], axis=1)
+st.subheader("Risk Prediction Agent")
+st.caption(
+    "Run the agent to identify which projects may require attention based on progress, risk, and delivery indicators."
+)
 
+run_risk_agent = st.button(
+    "Run Risk Prediction Agent",
+    key="run_risk_agent_btn"
+)
+
+if run_risk_agent:
+
+    # Run prediction ONLY when clicked
+    risk_predictions = df.apply(predict_project_risk, axis=1)
+    df_risk = pd.concat([df, risk_predictions], axis=1)
+
+    high_predicted_count = int((df_risk["Predicted Risk Level"] == "Likely High Risk").sum())
+    watch_count = int((df_risk["Predicted Risk Level"] == "Watch Closely").sum())
+    stable_count = int((df_risk["Predicted Risk Level"] == "Stable").sum())
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Likely High Risk", high_predicted_count)
+    c2.metric("Watch Closely", watch_count)
+    c3.metric("Stable", stable_count)
+
+    fig_pred = px.bar(
+        df_risk.sort_values("Predicted Risk Score", ascending=False),
+        x="Project",
+        y="Predicted Risk Score",
+        color="Predicted Risk Level",
+        color_discrete_map={
+            "Likely High Risk": "#e74c3c",
+            "Watch Closely": "#f39c12",
+            "Stable": "#2ecc71"
+        },
+        hover_data=["Risk Driver", "Completion", "Risk", "RAG Status"],
+        title="Predicted Project Risk"
+    )
+    st.plotly_chart(fig_pred, use_container_width=True)
+
+    st.caption(
+        "Higher scores indicate a greater likelihood of delivery issues. "
+        "Use the risk drivers below to understand why projects are flagged."
+    )
+
+    risk_agent_view = df_risk[
+        [
+            "Project",
+            "Completion",
+            "Risk",
+            "RAG Status",
+            "Predicted Risk Score",
+            "Predicted Risk Level",
+            "Risk Driver"
+        ]
+    ].sort_values("Predicted Risk Score", ascending=False)
+
+    st.dataframe(risk_agent_view, use_container_width=True)
 # =========================================================
 # TABS
 # =========================================================
