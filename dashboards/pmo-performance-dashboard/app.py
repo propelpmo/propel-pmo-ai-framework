@@ -389,8 +389,6 @@ df["Risk Score"] = df["Risk"].map(risk_map)
 # =========================================================
 # RISK PREDICTION AGENT V1
 # =========================================================
-#risk_predictions = df.apply(predict_project_risk, axis=1)
-#df = pd.concat([df, risk_predictions], axis=1)
 st.subheader("Risk Prediction Agent")
 st.caption(
     "Run the agent to identify which projects may require attention based on progress, risk, and delivery indicators."
