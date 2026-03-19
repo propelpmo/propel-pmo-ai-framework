@@ -387,22 +387,17 @@ risk_map = {"Low": 1, "Medium": 2, "High": 3}
 df["Risk Score"] = df["Risk"].map(risk_map)
 
 # =========================================================
-# RISK PREDICTION AGENT V1
-# =========================================================
-    # =========================================================
     # RISK PREDICTION AGENT (BUTTON-BASED)
-    # =========================================================
-    st.subheader("Risk Prediction Agent")
-    st.caption(
-        "Run the agent to identify which projects may require attention based on progress, risk, and delivery indicators."
+# =========================================================
+st.subheader("Risk Prediction Agent")
+st.caption(
+    "Run the agent to identify which projects may require attention based on progress, risk, and delivery indicators."
+)
+run_risk_agent = st.button(
+    "Run Risk Prediction Agent",
+    key="run_risk_agent_btn"
     )
-
-    run_risk_agent = st.button(
-        "Run Risk Prediction Agent",
-        key="run_risk_agent_btn"
-    )
-
-    if run_risk_agent:
+if run_risk_agent:
         risk_predictions = df.apply(predict_project_risk, axis=1)
         df_risk = pd.concat([df, risk_predictions], axis=1)
 
