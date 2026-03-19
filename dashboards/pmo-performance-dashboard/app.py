@@ -622,16 +622,6 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     )
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
-    st.subheader("Risk Prediction Agent")
-    st.caption(
-        "This rule-based agent predicts which projects may require closer attention next, "
-        "based on progress, current risk, RAG status, and delivery risk indicators."
-    )
-
-    high_predicted_count = int((df["Predicted Risk Level"] == "Likely High Risk").sum())
-    watch_count = int((df["Predicted Risk Level"] == "Watch Closely").sum())
-    stable_count = int((df["Predicted Risk Level"] == "Stable").sum())
-
     c1, c2, c3 = st.columns(3)
     c1.metric("Likely High Risk", high_predicted_count)
     c2.metric("Watch Closely", watch_count)
