@@ -1,16 +1,12 @@
 import os
 import re
 import json
-import smtplib
 from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import requests
 
 try:
@@ -75,14 +71,14 @@ def send_email(subject, body):
 
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     payload = {
         "from": "onboarding@resend.dev",
         "to": [receiver],
         "subject": subject,
-        "text": body
+        "text": body,
     }
 
     try:
@@ -90,7 +86,7 @@ def send_email(subject, body):
             "https://api.resend.com/emails",
             headers=headers,
             json=payload,
-            timeout=30
+            timeout=30,
         )
 
         if response.status_code in [200, 201]:
@@ -176,16 +172,13 @@ def is_in_scope(user_text: str) -> bool:
         "dashboard", "portfolio health", "project risk",
         "propel pmo", "governance model", "operating model",
         "project governance", "portfolio governance", "ai governance",
-        "executive summary", "pmo maturity", "rag", "delivery oversight"
+        "executive summary", "pmo maturity", "rag", "delivery oversight",
     ]
     text = user_text.lower()
     return any(keyword in text for keyword in allowed_keywords)
 
 
 def get_rag_context(user_query: str) -> str:
-    """
-    Placeholder for future RAG integration.
-    """
     return ""
 
 
@@ -214,15 +207,11 @@ def generate_chat_response(chat_history: list, user_question: str) -> str:
         )
 
     rag_context = get_rag_context(user_question)
-
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
     if rag_context:
         messages.append(
-            {
-                "role": "system",
-                "content": f"Relevant Propel PMO knowledge:\n{rag_context}"
-            }
+            {"role": "system", "content": f"Relevant Propel PMO knowledge:\n{rag_context}"}
         )
 
     messages.extend(chat_history)
@@ -232,7 +221,7 @@ def generate_chat_response(chat_history: list, user_question: str) -> str:
             model="gpt-4.1-mini",
             messages=messages,
             temperature=0.3,
-            max_tokens=300
+            max_tokens=300,
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
@@ -314,12 +303,14 @@ def predict_project_risk(row):
     if not drivers:
         drivers.append("No major warning signals")
 
-    return pd.Series({
-        "Predicted Risk Score": score,
-        "Predicted Risk Level": predicted_label,
-        "Risk Driver": ", ".join(drivers[:3])
-    })
-# =========================================================
+    return pd.Series(
+        {
+            "Predicted Risk Score": score,
+            "Predicted Risk Level": predicted_label,
+            "Risk Driver": ", ".join(drivers[:3]),
+        }
+    )
+    # =========================================================
 # SESSION STATE
 # =========================================================
 if "messages" not in st.session_state:
@@ -367,7 +358,7 @@ data = {
         "PMO Dashboard Build",
         "Risk Framework Rollout",
         "Portfolio Automation",
-        "Resource Planning"
+        "Resource Planning",
     ],
     "Completion": [82, 68, 54, 41, 76],
     "AI Score": [4.7, 4.5, 3.8, 3.5, 4.2],
@@ -376,7 +367,7 @@ data = {
     "Schedule Risk": [3, 2, 5, 4, 3],
     "Budget Risk": [2, 2, 4, 5, 3],
     "Delivery Risk": [3, 2, 4, 5, 3],
-    "Data Risk": [2, 1, 4, 3, 2]
+    "Data Risk": [2, 1, 4, 3, 2],
 }
 
 df = pd.DataFrame(data)
@@ -412,9 +403,6 @@ with tab1:
     col5.metric("Green Projects", green_count)
     col6.metric("Red Projects", red_count)
 
-# =========================================================
-    # EXECUTIVE SUMMARY BUTTON (NO OPENAI)
-# =========================================================
     st.subheader("AI Executive Summary")
     st.caption(
         "Click the button to generate a plain-language summary of the current portfolio. "
@@ -423,7 +411,7 @@ with tab1:
 
     clicked_exec_summary = st.button(
         "Generate AI Executive Summary",
-        key="generate_exec_summary_btn"
+        key="generate_exec_summary_btn",
     )
 
     if clicked_exec_summary:
@@ -471,12 +459,8 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         values=rag_counts.values,
         names=rag_counts.index,
         color=rag_counts.index,
-        color_discrete_map={
-            "Green": "#2ecc71",
-            "Amber": "#f39c12",
-            "Red": "#e74c3c"
-        },
-        title="RAG Status Distribution"
+        color_discrete_map={"Green": "#2ecc71", "Amber": "#f39c12", "Red": "#e74c3c"},
+        title="RAG Status Distribution",
     )
     st.plotly_chart(fig_rag, use_container_width=True)
 
@@ -486,8 +470,7 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         "Use it to compare projects individually and identify which efforts may need closer review."
     )
     styled_df = df[["Project", "Completion", "AI Score", "Risk", "RAG Status"]].style.map(
-        rag_color,
-        subset=["RAG Status"]
+        rag_color, subset=["RAG Status"]
     )
     st.dataframe(styled_df, use_container_width=True)
 
@@ -496,17 +479,16 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         "This trend shows how delivery performance changes over time. "
         "An upward trend suggests improving execution, while a flat or declining trend may indicate delivery challenges."
     )
-    trend = pd.DataFrame({
-        "Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
-        "Score": [68, 72, 75, 79, 83, 87]
-    })
+    trend = pd.DataFrame(
+        {"Month": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], "Score": [68, 72, 75, 79, 83, 87]}
+    )
 
     fig_trend = px.line(
         trend,
         x="Month",
         y="Score",
         markers=True,
-        title="Delivery Performance Over Time"
+        title="Delivery Performance Over Time",
     )
     st.plotly_chart(fig_trend, use_container_width=True)
 
@@ -515,12 +497,7 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         "This chart ranks projects by AI score or strategic priority. "
         "Higher scores suggest stronger alignment to business value, transformation goals, or AI-driven focus areas."
     )
-    fig_score = px.bar(
-        df,
-        x="Project",
-        y="AI Score",
-        title="AI Priority Score by Project"
-    )
+    fig_score = px.bar(df, x="Project", y="AI Score", title="AI Priority Score by Project")
     st.plotly_chart(fig_score, use_container_width=True)
 
     st.subheader("Portfolio Risk Heatmap")
@@ -534,40 +511,25 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         y="Risk Score",
         size="AI Score",
         color="Risk",
-        color_discrete_map={
-            "Low": "#2ecc71",
-            "Medium": "#f39c12",
-            "High": "#e74c3c"
-        },
+        color_discrete_map={"Low": "#2ecc71", "Medium": "#f39c12", "High": "#e74c3c"},
         hover_name="Project",
-        hover_data={
-            "Completion": True,
-            "Risk Score": False,
-            "AI Score": True,
-            "Risk": True
-        },
-        title="Portfolio Risk vs Completion"
+        hover_data={"Completion": True, "Risk Score": False, "AI Score": True, "Risk": True},
+        title="Portfolio Risk vs Completion",
     )
 
     fig_heatmap.update_yaxes(
         tickmode="array",
         tickvals=[1, 2, 3],
-        ticktext=["Low", "Medium", "High"]
+        ticktext=["Low", "Medium", "High"],
     )
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
-# =========================================================
-    # RISK PREDICTION AGENT (BUTTON-BASED)
-# =========================================================
     st.subheader("Risk Prediction Agent")
     st.caption(
         "Run the agent to identify which projects may require attention based on progress, risk, and delivery indicators."
     )
 
-    run_risk_agent = st.button(
-        "Run Risk Prediction Agent",
-        key="run_risk_agent_btn"
-    )
+    run_risk_agent = st.button("Run Risk Prediction Agent", key="run_risk_agent_btn")
 
     if run_risk_agent:
         risk_predictions = df.apply(predict_project_risk, axis=1)
@@ -590,10 +552,10 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
             color_discrete_map={
                 "Likely High Risk": "#e74c3c",
                 "Watch Closely": "#f39c12",
-                "Stable": "#2ecc71"
+                "Stable": "#2ecc71",
             },
             hover_data=["Risk Driver", "Completion", "Risk", "RAG Status"],
-            title="Predicted Project Risk"
+            title="Predicted Project Risk",
         )
         st.plotly_chart(fig_pred, use_container_width=True)
 
@@ -610,7 +572,7 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
                 "RAG Status",
                 "Predicted Risk Score",
                 "Predicted Risk Level",
-                "Risk Driver"
+                "Risk Driver",
             ]
         ].sort_values("Predicted Risk Score", ascending=False)
 
@@ -628,28 +590,18 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         df["Budget Risk"].mean(),
         df["Delivery Risk"].mean(),
         df["Data Risk"].mean(),
-        df["Schedule Risk"].mean()
+        df["Schedule Risk"].mean(),
     ]
     radar_categories = ["Schedule", "Budget", "Delivery", "Data", "Schedule"]
 
     fig_radar = go.Figure()
     fig_radar.add_trace(
-        go.Scatterpolar(
-            r=radar_values,
-            theta=radar_categories,
-            fill="toself",
-            name="Portfolio Risk"
-        )
+        go.Scatterpolar(r=radar_values, theta=radar_categories, fill="toself", name="Portfolio Risk")
     )
 
     fig_radar.update_layout(
-        polar=dict(
-            radialaxis=dict(
-                visible=True,
-                range=[0, 5]
-            )
-        ),
-        showlegend=False
+        polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
+        showlegend=False,
     )
     st.plotly_chart(fig_radar, use_container_width=True)
 
@@ -658,10 +610,12 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         "This section shows how mature the PMO is across key capabilities such as governance, delivery, reporting, risk, and automation. "
         "Higher scores indicate stronger and more established PMO practices."
     )
-    maturity_df = pd.DataFrame({
-        "Dimension": ["Governance", "Delivery", "Reporting", "Risk", "Automation"],
-        "Score": [3.8, 4.1, 4.0, 3.6, 3.4]
-    })
+    maturity_df = pd.DataFrame(
+        {
+            "Dimension": ["Governance", "Delivery", "Reporting", "Risk", "Automation"],
+            "Score": [3.8, 4.1, 4.0, 3.6, 3.4],
+        }
+    )
 
     overall_maturity = round(maturity_df["Score"].mean(), 1)
     st.metric("Overall PMO Maturity", f"{overall_maturity} / 5")
@@ -671,10 +625,10 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         x="Dimension",
         y="Score",
         title="PMO Maturity by Dimension",
-        range_y=[0, 5]
+        range_y=[0, 5],
     )
     st.plotly_chart(fig_maturity, use_container_width=True)
-# =========================================================
+    # =========================================================
 # TAB 2 - AI PMO CHATBOT
 # =========================================================
 with tab2:
@@ -686,9 +640,6 @@ with tab2:
 
     usage_db = load_usage()
 
-    # -----------------------------------------------------
-    # PRE-CHAT LEAD FORM
-    # -----------------------------------------------------
     if not st.session_state.lead_verified:
         st.info("Please complete this short form to access the chatbot.")
 
@@ -707,8 +658,8 @@ with tab2:
                     "Delivery Oversight",
                     "Risk Monitoring",
                     "PMO Modernization",
-                    "General Inquiry"
-                ]
+                    "General Inquiry",
+                ],
             )
 
             start_chat = st.form_submit_button("Start Chat")
@@ -738,7 +689,7 @@ with tab2:
                         "name": name.strip(),
                         "company": company.strip(),
                         "role": role.strip(),
-                        "interest": interest
+                        "interest": interest,
                     }
                     save_usage(usage_db)
 
@@ -747,7 +698,7 @@ with tab2:
                     clean_email,
                     company.strip(),
                     role.strip(),
-                    interest
+                    interest,
                 )
 
                 if sent:
@@ -759,9 +710,6 @@ with tab2:
 
         st.stop()
 
-    # -----------------------------------------------------
-    # CHATBOT ACTIVE
-    # -----------------------------------------------------
     visitor_email = st.session_state.lead_email
 
     if visitor_email not in usage_db:
@@ -771,7 +719,7 @@ with tab2:
             "name": st.session_state.lead_name,
             "company": st.session_state.lead_company,
             "role": st.session_state.lead_role,
-            "interest": st.session_state.lead_interest
+            "interest": st.session_state.lead_interest,
         }
         save_usage(usage_db)
 
@@ -783,29 +731,20 @@ with tab2:
     st.write(f"**Email:** {st.session_state.lead_email}")
     st.caption(f"Questions remaining: {remaining} of {QUESTION_LIMIT}")
 
-    # -----------------------------------------------------
-    # LIMIT REACHED
-    # -----------------------------------------------------
     if current_count >= QUESTION_LIMIT:
         st.warning(LIMIT_MESSAGE)
         st.markdown(f"[Go to Contact Form]({CONTACT_URL})")
         st.session_state.show_post_chat_form = True
 
-    # -----------------------------------------------------
-    # CHAT HISTORY
-    # -----------------------------------------------------
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # -----------------------------------------------------
-    # SUGGESTED QUESTIONS
-    # -----------------------------------------------------
     suggested_questions = [
         "What does an AI PMO do?",
         "How can Propel PMO improve portfolio governance?",
         "How does AI help executive reporting?",
-        "What PMO modernization services does Propel PMO offer?"
+        "What PMO modernization services does Propel PMO offer?",
     ]
 
     st.write("Try one of these questions:")
@@ -816,45 +755,30 @@ with tab2:
         if cols[i].button(question, key=key, disabled=current_count >= QUESTION_LIMIT):
             st.session_state.pending_question = question
 
-    # -----------------------------------------------------
-    # CHAT INPUT
-    # -----------------------------------------------------
     user_input = st.chat_input(
         "Ask about AI PMO, PMO governance, delivery oversight, risk monitoring, or Propel PMO services",
-        disabled=current_count >= QUESTION_LIMIT
+        disabled=current_count >= QUESTION_LIMIT,
     )
 
     if st.session_state.pending_question and not user_input and current_count < QUESTION_LIMIT:
         user_input = st.session_state.pending_question
         st.session_state.pending_question = None
 
-    # -----------------------------------------------------
-    # PROCESS CHAT
-    # -----------------------------------------------------
     if user_input and current_count < QUESTION_LIMIT:
         with st.chat_message("user"):
             st.markdown(user_input)
 
-        st.session_state.messages.append({
-            "role": "user",
-            "content": user_input
-        })
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
         if not is_in_scope(user_input):
             assistant_reply = OUT_OF_SCOPE_MESSAGE
         else:
-            assistant_reply = generate_chat_response(
-                st.session_state.messages,
-                user_input
-            )
+            assistant_reply = generate_chat_response(st.session_state.messages, user_input)
 
         with st.chat_message("assistant"):
             st.markdown(assistant_reply)
 
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": assistant_reply
-        })
+        st.session_state.messages.append({"role": "assistant", "content": assistant_reply})
 
         usage_db[visitor_email]["count"] = current_count + 1
         usage_db[visitor_email]["last_question_at"] = datetime.now().isoformat()
@@ -869,9 +793,6 @@ with tab2:
         if usage_db[visitor_email]["count"] >= QUESTION_LIMIT:
             st.session_state.show_post_chat_form = True
 
-    # -----------------------------------------------------
-    # POST CHAT LEAD FORM
-    # -----------------------------------------------------
     if st.session_state.show_post_chat_form or current_count >= QUESTION_LIMIT:
         st.markdown("---")
         st.subheader("Request a Follow-Up")
@@ -890,23 +811,18 @@ with tab2:
                     "Portfolio Dashboard / Reporting",
                     "Risk Monitoring Framework",
                     "PMO Modernization",
-                    "Executive PMO Consulting"
-                ]
+                    "Executive PMO Consulting",
+                ],
             )
 
             timeline = st.selectbox(
                 "Desired Timeline",
-                [
-                    "Immediately",
-                    "This Month",
-                    "This Quarter",
-                    "Exploring Options"
-                ]
+                ["Immediately", "This Month", "This Quarter", "Exploring Options"],
             )
 
             notes = st.text_area(
                 "How can Propel PMO help?",
-                placeholder="Share your portfolio, PMO, governance, reporting, or AI transformation needs."
+                placeholder="Share your portfolio, PMO, governance, reporting, or AI transformation needs.",
             )
 
             submit_followup = st.form_submit_button("Submit Inquiry")
@@ -919,7 +835,7 @@ with tab2:
                 followup_role.strip(),
                 service_interest,
                 timeline,
-                notes.strip()
+                notes.strip(),
             )
 
             if sent:
