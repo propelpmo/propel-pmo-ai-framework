@@ -319,7 +319,7 @@ def predict_project_risk(row):
         "Predicted Risk Level": predicted_label,
         "Risk Driver": ", ".join(drivers[:3])
     })
-    # =========================================================
+# =========================================================
 # SESSION STATE
 # =========================================================
 if "messages" not in st.session_state:
@@ -412,9 +412,9 @@ with tab1:
     col5.metric("Green Projects", green_count)
     col6.metric("Red Projects", red_count)
 
-    # =========================================================
+# =========================================================
     # EXECUTIVE SUMMARY BUTTON (NO OPENAI)
-    # =========================================================
+# =========================================================
     st.subheader("AI Executive Summary")
     st.caption(
         "Click the button to generate a plain-language summary of the current portfolio. "
@@ -556,9 +556,9 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     )
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
-    # =========================================================
+# =========================================================
     # RISK PREDICTION AGENT (BUTTON-BASED)
-    # =========================================================
+# =========================================================
     st.subheader("Risk Prediction Agent")
     st.caption(
         "Run the agent to identify which projects may require attention based on progress, risk, and delivery indicators."
@@ -674,7 +674,7 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
         range_y=[0, 5]
     )
     st.plotly_chart(fig_maturity, use_container_width=True)
-    # =========================================================
+# =========================================================
 # TAB 2 - AI PMO CHATBOT
 # =========================================================
 with tab2:
