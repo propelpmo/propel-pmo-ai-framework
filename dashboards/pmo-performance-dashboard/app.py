@@ -240,7 +240,86 @@ def rag_color(val):
     elif val == "Red":
         return "background-color: #e74c3c; color: white;"
     return ""
+def predict_project_risk(row):
+    score = 0
+    drivers = []
 
+    # Completion-based risk
+    if row["Completion"] < 50:
+        score += 3
+        drivers.append("Low completion")
+    elif row["Completion"] < 70:
+        score += 2
+        drivers.append("Moderate completion")
+    else:
+        score += 0
+
+    # Current qualitative risk
+    if row["Risk"] == "High":
+        score += 3
+        drivers.append("High current risk")
+    elif row["Risk"] == "Medium":
+        score += 2
+        drivers.append("Medium current risk")
+    elif row["Risk"] == "Low":
+        score += 1
+
+    # RAG status
+    if row["RAG Status"] == "Red":
+        score += 3
+        drivers.append("Red status")
+    elif row["RAG Status"] == "Amber":
+        score += 2
+        drivers.append("Amber status")
+    elif row["RAG Status"] == "Green":
+        score += 0
+
+    # Numeric risk factors
+    if row["Schedule Risk"] >= 4:
+        score += 2
+        drivers.append("Schedule pressure")
+    elif row["Schedule Risk"] == 3:
+        score += 1
+
+    if row["Budget Risk"] >= 4:
+        score += 2
+        drivers.append("Budget pressure")
+    elif row["Budget Risk"] == 3:
+        score += 1
+
+    if row["Delivery Risk"] >= 4:
+        score += 2
+        drivers.append("Delivery pressure")
+    elif row["Delivery Risk"] == 3:
+        score += 1
+
+    if row["Data Risk"] >= 4:
+        score += 2
+        drivers.append("Data risk")
+    elif row["Data Risk"] == 3:
+        score += 1
+
+    # Optional adjustment using AI Score
+    if row["AI Score"] < 3.8:
+        score += 1
+        drivers.append("Lower strategic score")
+
+    # Final label
+    if score >= 12:
+        predicted_label = "Likely High Risk"
+    elif score >= 8:
+        predicted_label = "Watch Closely"
+    else:
+        predicted_label = "Stable"
+
+    if not drivers:
+        drivers.append("No major warning signals")
+
+    return pd.Series({
+        "Predicted Risk Score": score,
+        "Predicted Risk Level": predicted_label,
+        "Risk Driver": ", ".join(drivers[:3])
+    })
 # =========================================================
 # SESSION STATE
 # =========================================================
@@ -306,7 +385,16 @@ df["RAG Status"] = df["RAG Status"].astype(str)
 
 risk_map = {"Low": 1, "Medium": 2, "High": 3}
 df["Risk Score"] = df["Risk"].map(risk_map)
+df = pd.DataFrame(data)
+df["RAG Status"] = df["RAG Status"].astype(str)
 
+risk_map = {"Low": 1, "Medium": 2, "High": 3}
+df["Risk Score"] = df["Risk"].map(risk_map)
+# =========================================================
+# RISK PREDICTION AGENT V1
+# =========================================================
+risk_predictions = df.apply(predict_project_risk, axis=1)
+df = pd.concat([df, risk_predictions], axis=1)
 # =========================================================
 # TABS
 # =========================================================
@@ -475,6 +563,55 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     )
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
+    st.subheader("Risk Prediction Agent")
+    st.caption(
+        "This rule-based agent predicts which projects may require closer attention next, "
+        "based on progress, current risk, RAG status, and delivery risk indicators."
+    )
+
+    high_predicted_count = int((df["Predicted Risk Level"] == "Likely High Risk").sum())
+    watch_count = int((df["Predicted Risk Level"] == "Watch Closely").sum())
+    stable_count = int((df["Predicted Risk Level"] == "Stable").sum())
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Likely High Risk", high_predicted_count)
+    c2.metric("Watch Closely", watch_count)
+    c3.metric("Stable", stable_count)
+
+    fig_pred = px.bar(
+        df.sort_values("Predicted Risk Score", ascending=False),
+        x="Project",
+        y="Predicted Risk Score",
+        color="Predicted Risk Level",
+        color_discrete_map={
+            "Likely High Risk": "#e74c3c",
+            "Watch Closely": "#f39c12",
+            "Stable": "#2ecc71"
+        },
+        hover_data=["Risk Driver", "Completion", "Risk", "RAG Status"],
+        title="Predicted Project Risk"
+    )
+    st.plotly_chart(fig_pred, use_container_width=True)
+
+    st.caption(
+        "How to read this: higher scores indicate a greater likelihood of delivery issues or escalation needs. "
+        "Use the risk driver column below to understand the main reason each project is being flagged."
+    )
+
+    risk_agent_view = df[
+        [
+            "Project",
+            "Completion",
+            "Risk",
+            "RAG Status",
+            "Predicted Risk Score",
+            "Predicted Risk Level",
+            "Risk Driver"
+        ]
+    ].sort_values("Predicted Risk Score", ascending=False)
+
+    st.dataframe(risk_agent_view, use_container_width=True)
+    
     st.subheader("Risk Radar")
     st.caption(
         "This chart shows average risk across schedule, budget, delivery, and data dimensions. "
