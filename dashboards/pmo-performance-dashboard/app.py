@@ -524,7 +524,6 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     )
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
-    st.subheader("Risk Prediction Agent")
     st.caption(
         "Run the agent to identify which projects may require attention based on progress, risk, and delivery indicators."
     )
