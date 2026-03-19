@@ -67,7 +67,6 @@ For a deeper discussion on AI PMO strategy, portfolio governance, executive repo
 """
 
 # =========================================================
-# =========================================================
 # EMAIL HELPER (RESEND)
 # =========================================================
 def send_email(subject, body):
@@ -80,7 +79,7 @@ def send_email(subject, body):
     }
 
     payload = {
-        "from": "onboarding@resend.dev",   # use this for testing first
+        "from": "onboarding@resend.dev",
         "to": [receiver],
         "subject": subject,
         "text": body
@@ -139,6 +138,7 @@ Notes:
 Submitted At: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 """
     return send_email(subject, body)
+
 # =========================================================
 # HELPERS
 # =========================================================
@@ -151,6 +151,7 @@ def load_usage():
             return {}
     return {}
 
+
 def save_usage(data):
     try:
         with open(USAGE_FILE, "w", encoding="utf-8") as f:
@@ -158,12 +159,15 @@ def save_usage(data):
     except Exception:
         pass
 
+
 def normalize_email(email: str) -> str:
     return email.strip().lower()
+
 
 def valid_email(email: str) -> bool:
     pattern = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
     return bool(re.match(pattern, email.strip()))
+
 
 def is_in_scope(user_text: str) -> bool:
     allowed_keywords = [
@@ -178,11 +182,13 @@ def is_in_scope(user_text: str) -> bool:
     text = user_text.lower()
     return any(keyword in text for keyword in allowed_keywords)
 
+
 def get_rag_context(user_query: str) -> str:
     """
     Placeholder for future RAG integration.
     """
     return ""
+
 
 def get_openai_client():
     api_key = ""
@@ -198,6 +204,7 @@ def get_openai_client():
         return OpenAI(api_key=api_key)
     except Exception:
         return None
+
 
 def generate_chat_response(chat_history: list, user_question: str) -> str:
     client = get_openai_client()
@@ -232,6 +239,7 @@ def generate_chat_response(chat_history: list, user_question: str) -> str:
     except Exception as e:
         return f"An error occurred while generating the response: {e}"
 
+
 def rag_color(val):
     if val == "Green":
         return "background-color: #2ecc71; color: white;"
@@ -240,21 +248,19 @@ def rag_color(val):
     elif val == "Red":
         return "background-color: #e74c3c; color: white;"
     return ""
+
+
 def predict_project_risk(row):
     score = 0
     drivers = []
 
-    # Completion-based risk
     if row["Completion"] < 50:
         score += 3
         drivers.append("Low completion")
     elif row["Completion"] < 70:
         score += 2
         drivers.append("Moderate completion")
-    else:
-        score += 0
 
-    # Current qualitative risk
     if row["Risk"] == "High":
         score += 3
         drivers.append("High current risk")
@@ -264,17 +270,13 @@ def predict_project_risk(row):
     elif row["Risk"] == "Low":
         score += 1
 
-    # RAG status
     if row["RAG Status"] == "Red":
         score += 3
         drivers.append("Red status")
     elif row["RAG Status"] == "Amber":
         score += 2
         drivers.append("Amber status")
-    elif row["RAG Status"] == "Green":
-        score += 0
 
-    # Numeric risk factors
     if row["Schedule Risk"] >= 4:
         score += 2
         drivers.append("Schedule pressure")
@@ -299,12 +301,10 @@ def predict_project_risk(row):
     elif row["Data Risk"] == 3:
         score += 1
 
-    # Optional adjustment using AI Score
     if row["AI Score"] < 3.8:
         score += 1
         drivers.append("Lower strategic score")
 
-    # Final label
     if score >= 12:
         predicted_label = "Likely High Risk"
     elif score >= 8:
@@ -320,7 +320,7 @@ def predict_project_risk(row):
         "Predicted Risk Level": predicted_label,
         "Risk Driver": ", ".join(drivers[:3])
     })
-# =========================================================
+    # =========================================================
 # SESSION STATE
 # =========================================================
 if "messages" not in st.session_state:
@@ -385,20 +385,18 @@ df["RAG Status"] = df["RAG Status"].astype(str)
 
 risk_map = {"Low": 1, "Medium": 2, "High": 3}
 df["Risk Score"] = df["Risk"].map(risk_map)
-df = pd.DataFrame(data)
-df["RAG Status"] = df["RAG Status"].astype(str)
 
-risk_map = {"Low": 1, "Medium": 2, "High": 3}
-df["Risk Score"] = df["Risk"].map(risk_map)
 # =========================================================
 # RISK PREDICTION AGENT V1
 # =========================================================
 risk_predictions = df.apply(predict_project_risk, axis=1)
 df = pd.concat([df, risk_predictions], axis=1)
+
 # =========================================================
 # TABS
 # =========================================================
 tab1, tab2 = st.tabs(["Dashboard", "AI PMO Chatbot"])
+
 # =========================================================
 # TAB 1 - DASHBOARD
 # =========================================================
@@ -420,6 +418,7 @@ with tab1:
     col4.metric("Average AI Score", round(df["AI Score"].mean(), 1))
     col5.metric("Green Projects", green_count)
     col6.metric("Red Projects", red_count)
+
     # =========================================================
     # EXECUTIVE SUMMARY BUTTON (NO OPENAI)
     # =========================================================
@@ -429,7 +428,12 @@ with tab1:
         "This gives leadership a quick narrative view of delivery health, prioritization, and risk without reading every chart."
     )
 
-    if st.button("Generate AI Executive Summary"):
+    clicked_exec_summary = st.button(
+        "Generate AI Executive Summary",
+        key="generate_exec_summary_btn"
+    )
+
+    if clicked_exec_summary:
         avg_completion = int(df["Completion"].mean())
         total_projects = len(df)
         avg_ai_score = round(df["AI Score"].mean(), 1)
@@ -465,7 +469,7 @@ The average AI project score is {avg_ai_score}, with {top_project} currently ran
 
 Overall, the portfolio reflects a balanced view of delivery progress, prioritization, and execution health, with the greatest opportunity centered on close monitoring of red and amber efforts and acceleration of in-flight programs.
 """
-        st.info(summary)    
+        st.info(summary)
 
     st.subheader("Portfolio RAG Distribution")
     st.caption(
@@ -611,7 +615,7 @@ Overall, the portfolio reflects a balanced view of delivery progress, prioritiza
     ].sort_values("Predicted Risk Score", ascending=False)
 
     st.dataframe(risk_agent_view, use_container_width=True)
-    
+
     st.subheader("Risk Radar")
     st.caption(
         "This chart shows average risk across schedule, budget, delivery, and data dimensions. "
@@ -714,7 +718,7 @@ with tab2:
                 st.error("Please enter a valid email address.")
             else:
                 clean_email = normalize_email(email)
-        
+
                 st.session_state.lead_verified = True
                 st.session_state.lead_name = name.strip()
                 st.session_state.lead_email = clean_email
@@ -724,7 +728,7 @@ with tab2:
                 st.session_state.messages = []
                 st.session_state.pending_question = None
                 st.session_state.show_post_chat_form = False
-        
+
                 if clean_email not in usage_db:
                     usage_db[clean_email] = {
                         "count": 0,
@@ -735,7 +739,7 @@ with tab2:
                         "interest": interest
                     }
                     save_usage(usage_db)
-        
+
                 sent, error_message = send_prechat_email(
                     name.strip(),
                     clean_email,
@@ -743,12 +747,12 @@ with tab2:
                     role.strip(),
                     interest
                 )
-        
+
                 if sent:
                     st.success("Access granted. Notification email sent.")
                 else:
                     st.error(f"Access granted, but email failed: {error_message}")
-        
+
                 st.rerun()
 
         st.stop()
@@ -915,12 +919,12 @@ with tab2:
                 timeline,
                 notes.strip()
             )
-        
+
             if sent:
                 st.success("Your follow-up request has been sent to the Propel PMO team.")
             else:
                 st.error(f"Follow-up submitted, but email failed: {error_message}")
-        
+
             st.markdown(f"[Continue to Contact Form]({CONTACT_URL})")
 
 # =========================================================
