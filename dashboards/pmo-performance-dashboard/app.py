@@ -1133,7 +1133,7 @@ with tab4:
 # =========================================================
 # TAB 5 - AI PMO CHATBOT
 # =========================================================
-with tab4:
+with tab5:
     st.subheader("AI PMO Chatbot")
     st.caption(
         "This assistant is limited to AI PMO, PMO governance, portfolio delivery, "
