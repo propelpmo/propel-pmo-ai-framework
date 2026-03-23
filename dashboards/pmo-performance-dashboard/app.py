@@ -313,6 +313,7 @@ def predict_project_risk(row):
             "Risk Driver": ", ".join(drivers[:3]),
         }
     )
+
 # =========================================================
 # AI ACTION CENTER HELPERS
 # =========================================================
@@ -321,6 +322,7 @@ ROLE_ORDER = [
     "Executive / Leadership",
     "IT Director / IT Manager",
 ]
+
 
 def get_priority_label(score: int) -> str:
     if score >= 8:
@@ -338,7 +340,18 @@ def get_timeframe_label(score: int) -> str:
     return "This month"
 
 
-def build_action_trigger(project, role, signal, reason, action, score):
+def build_action_trigger(
+    project,
+    role,
+    signal,
+    reason,
+    action,
+    score,
+    root_cause=None,
+    risk_detail=None,
+    focus_area=None,
+    how_to_proceed=None,
+):
     return {
         "project": project,
         "role": role,
@@ -348,16 +361,126 @@ def build_action_trigger(project, role, signal, reason, action, score):
         "score": score,
         "priority": get_priority_label(score),
         "timeframe": get_timeframe_label(score),
+        "root_cause": root_cause or signal,
+        "risk_detail": risk_detail or reason,
+        "focus_area": focus_area or "General execution",
+        "how_to_proceed": how_to_proceed or "",
     }
 
 
-def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
+def build_fallback_steps(signal: str) -> str:
+    if signal == "Delivery escalation":
+        return (
+            "1. Review the current risk log and open blockers\n"
+            "2. Confirm the root cause across scope, dependencies, resources, or decisions\n"
+            "3. Reassess the critical path and identify any milestone slippage\n"
+            "4. Escalate unresolved blockers with owners and target dates\n"
+            "5. Publish an updated recovery plan to stakeholders"
+        )
+
+    if signal == "Low progress":
+        return (
+            "1. Review incomplete work and overdue tasks\n"
+            "2. Validate whether milestones remain realistic\n"
+            "3. Rebaseline near-term dates if recovery is needed\n"
+            "4. Assign owners to recovery actions\n"
+            "5. Track progress weekly until momentum improves"
+        )
+
+    if signal == "Schedule pressure":
+        return (
+            "1. Review critical path activities\n"
+            "2. Identify delayed milestones and dependency bottlenecks\n"
+            "3. Re-sequence tasks where possible\n"
+            "4. Confirm owner accountability for recovery dates\n"
+            "5. Communicate schedule impacts and next steps"
+        )
+
+    if signal == "Budget pressure":
+        return (
+            "1. Review current cost variance drivers\n"
+            "2. Identify overspend areas and avoidable spend\n"
+            "3. Compare scope against available funding\n"
+            "4. Prepare trade-off options for leadership\n"
+            "5. Confirm budget decisions and update forecasts"
+        )
+
+    if signal == "Execution risk":
+        return (
+            "1. Review throughput, blockers, and team capacity\n"
+            "2. Identify execution gaps affecting delivery\n"
+            "3. Remove technical or operational blockers\n"
+            "4. Reallocate support where needed\n"
+            "5. Monitor milestone performance closely"
+        )
+
+    if signal == "Data risk":
+        return (
+            "1. Validate data availability and ownership\n"
+            "2. Review data quality issues affecting delivery or reporting\n"
+            "3. Assign remediation actions to accountable owners\n"
+            "4. Confirm impact to downstream reporting or decisions\n"
+            "5. Implement controls to reduce repeat issues"
+        )
+
+    if signal == "Priority alignment review":
+        return (
+            "1. Review business value and current strategic alignment\n"
+            "2. Confirm whether the initiative still supports priority outcomes\n"
+            "3. Evaluate continue, reframe, or deprioritize options\n"
+            "4. Align stakeholders on recommended direction\n"
+            "5. Update the portfolio priority view"
+        )
+
+    if signal == "Leadership attention required":
+        return (
+            "1. Review escalation points affecting delivery confidence\n"
+            "2. Identify decisions that require leadership support\n"
+            "3. Confirm whether funding, scope, or priority changes are needed\n"
+            "4. Assign decision owners and due dates\n"
+            "5. Track follow-through on leadership actions"
+        )
+
+    if signal == "Dependency / readiness check":
+        return (
+            "1. Review critical dependencies and technical readiness\n"
+            "2. Confirm environment, integration, and resource readiness\n"
+            "3. Remove dependency bottlenecks affecting milestones\n"
+            "4. Align technical owners on corrective actions\n"
+            "5. Reconfirm delivery dates after readiness review"
+        )
+
+    if signal == "Cost management review":
+        return (
+            "1. Validate cost drivers and current budget variance\n"
+            "2. Identify workstreams driving budget pressure\n"
+            "3. Confirm mitigation options with delivery leads\n"
+            "4. Escalate trade-offs where needed\n"
+            "5. Update forecast and communicate impact"
+        )
+
+    if signal == "Delivery momentum risk":
+        return (
+            "1. Review current delivery velocity and milestone health\n"
+            "2. Confirm whether priority and scope remain appropriate\n"
+            "3. Decide whether intervention or reprioritization is needed\n"
+            "4. Align sponsors on near-term expectations\n"
+            "5. Monitor recovery progress"
+        )
+
+    return (
+        "1. Review current status and key risks\n"
+        "2. Confirm root cause and impacted milestones\n"
+        "3. Align stakeholders on next steps\n"
+        "4. Assign accountable owners\n"
+        "5. Track progress through closure"
+    )
+    def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
     triggers = {role: [] for role in ROLE_ORDER}
 
     for _, row in df_input.iterrows():
         project = row["Project"]
 
-        # 1. Red / Amber / High risk conditions
         if row["RAG Status"] == "Red" or row["Risk"] == "High":
             triggers["Project Manager"].append(
                 build_action_trigger(
@@ -368,8 +491,12 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                         f"{project} is flagged as {row['RAG Status']} with {row['Risk']} risk. "
                         "This indicates elevated delivery pressure and a need for immediate action."
                     ),
-                    action="Update the risk log, confirm root causes, and escalate unresolved blockers.",
+                    action="Stabilize delivery and address the most critical execution issues.",
                     score=9,
+                    root_cause="Red/high-risk status with elevated delivery pressure and unresolved execution concerns.",
+                    risk_detail="There is a risk of milestone slippage, unresolved blockers, and weakened stakeholder confidence.",
+                    focus_area="Critical path, blockers, milestone recovery, risk log",
+                    how_to_proceed=build_fallback_steps("Delivery escalation"),
                 )
             )
             triggers["Executive / Leadership"].append(
@@ -381,8 +508,12 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                         f"{project} is showing a red/high-risk signal that may affect portfolio outcomes "
                         "or delivery confidence."
                     ),
-                    action="Review escalation needs, decision bottlenecks, and whether executive intervention is required.",
+                    action="Review escalation needs and remove high-impact decision bottlenecks.",
                     score=8,
+                    root_cause="Elevated risk with a need for leadership intervention or priority decisions.",
+                    risk_detail="Delays or unresolved issues may affect portfolio confidence, funding, or strategic outcomes.",
+                    focus_area="Executive decisions, escalation support, funding or scope trade-offs",
+                    how_to_proceed=build_fallback_steps("Leadership attention required"),
                 )
             )
             triggers["IT Director / IT Manager"].append(
@@ -394,12 +525,21 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                         f"{project} shows elevated execution risk and may require technical unblock, "
                         "resource support, or delivery triage."
                     ),
-                    action="Assess delivery blockers, validate technical readiness, and reassign capacity if needed.",
+                    action="Assess technical blockers and improve execution readiness.",
                     score=8,
+                    root_cause="Execution instability caused by blockers, technical readiness gaps, or capacity issues.",
+                    risk_detail="There is a risk of further slippage if technical blockers or readiness issues remain unresolved.",
+                    focus_area="Technical blockers, readiness, delivery support, team capacity",
+                    how_to_proceed=(
+                        "1. Review technical blockers and unresolved delivery issues\n"
+                        "2. Confirm system, environment, and integration readiness\n"
+                        "3. Reallocate capacity where execution is constrained\n"
+                        "4. Assign owners to blocker removal\n"
+                        "5. Recheck readiness against near-term milestones"
+                    ),
                 )
             )
 
-        # 2. Low completion
         if row["Completion"] < 50:
             triggers["Project Manager"].append(
                 build_action_trigger(
@@ -410,8 +550,12 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                         f"{project} is only {row['Completion']}% complete, suggesting possible slippage "
                         "or weak execution momentum."
                     ),
-                    action="Rebaseline near-term milestones, review overdue work, and align owners on recovery actions.",
+                    action="Rebaseline the near-term plan and restore delivery momentum.",
                     score=8,
+                    root_cause="Low completion suggests weak execution momentum, delayed work, or unrealistic plan assumptions.",
+                    risk_detail="If recovery actions are delayed, near-term milestones and delivery confidence may continue to weaken.",
+                    focus_area="Milestones, overdue work, recovery plan, owner alignment",
+                    how_to_proceed=build_fallback_steps("Low progress"),
                 )
             )
             triggers["Executive / Leadership"].append(
@@ -424,10 +568,13 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                     ),
                     action="Confirm whether current scope, funding, and priority remain appropriate.",
                     score=6,
+                    root_cause="Delivery momentum is below expectation and may indicate misaligned scope, resourcing, or priority.",
+                    risk_detail="Without intervention, delivery speed may remain below target and reduce business value realization.",
+                    focus_area="Scope alignment, funding, priority decisions, recovery expectations",
+                    how_to_proceed=build_fallback_steps("Delivery momentum risk"),
                 )
             )
 
-        # 3. Schedule risk
         if row["Schedule Risk"] >= 4:
             triggers["Project Manager"].append(
                 build_action_trigger(
@@ -438,8 +585,12 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                         f"{project} has a schedule risk score of {row['Schedule Risk']}, "
                         "which suggests milestones may slip without intervention."
                     ),
-                    action="Review critical path items, escalate dependencies, and update milestone recovery dates.",
+                    action="Review the critical path and recover milestone timing.",
                     score=8,
+                    root_cause="Schedule risk indicates critical path stress, dependency issues, or unrealistic timing assumptions.",
+                    risk_detail="There is a risk of milestone slippage and downstream delivery delays if schedule issues are not addressed.",
+                    focus_area="Critical path, milestone slippage, dependencies, recovery dates",
+                    how_to_proceed=build_fallback_steps("Schedule pressure"),
                 )
             )
             triggers["IT Director / IT Manager"].append(
@@ -450,12 +601,15 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                     reason=(
                         f"{project} is under schedule pressure and may be affected by sequencing, technical readiness, or team availability."
                     ),
-                    action="Validate environment readiness, integration dependencies, and team execution capacity.",
+                    action="Validate readiness and resolve dependency constraints affecting the plan.",
                     score=7,
+                    root_cause="Schedule issues may be driven by technical readiness gaps, dependency delays, or resource timing.",
+                    risk_detail="If readiness and dependencies are not aligned, milestone recovery may not hold.",
+                    focus_area="Dependencies, readiness, environment alignment, execution capacity",
+                    how_to_proceed=build_fallback_steps("Dependency / readiness check"),
                 )
             )
 
-        # 4. Budget risk
         if row["Budget Risk"] >= 4:
             triggers["Executive / Leadership"].append(
                 build_action_trigger(
@@ -465,8 +619,12 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                     reason=(
                         f"{project} has a budget risk score of {row['Budget Risk']}, which may require funding review or priority trade-offs."
                     ),
-                    action="Review budget tolerance, funding decisions, and potential scope trade-offs.",
+                    action="Review funding decisions and confirm scope or priority trade-offs.",
                     score=8,
+                    root_cause="Budget risk suggests cost pressure, forecast variance, or mismatch between scope and funding.",
+                    risk_detail="There is a risk of overspend, reduced scope, or delayed outcomes without timely decisions.",
+                    focus_area="Funding decisions, scope trade-offs, portfolio priority, financial tolerance",
+                    how_to_proceed=build_fallback_steps("Budget pressure"),
                 )
             )
             triggers["Project Manager"].append(
@@ -477,12 +635,15 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                     reason=(
                         f"{project} is showing meaningful budget pressure."
                     ),
-                    action="Confirm cost drivers, review variance causes, and prepare mitigation options.",
+                    action="Review cost drivers and prepare mitigation options.",
                     score=6,
+                    root_cause="Budget pressure indicates variance in spend, forecast, or execution assumptions.",
+                    risk_detail="Unmanaged cost pressure may force trade-offs or weaken delivery confidence.",
+                    focus_area="Cost drivers, variance review, mitigation options, forecast updates",
+                    how_to_proceed=build_fallback_steps("Cost management review"),
                 )
             )
 
-        # 5. Delivery risk
         if row["Delivery Risk"] >= 4:
             triggers["IT Director / IT Manager"].append(
                 build_action_trigger(
@@ -492,12 +653,15 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                     reason=(
                         f"{project} has a delivery risk score of {row['Delivery Risk']}, indicating operational execution concerns."
                     ),
-                    action="Review team throughput, remove technical blockers, and align delivery support where needed.",
+                    action="Remove blockers and reinforce delivery execution support.",
                     score=8,
+                    root_cause="Operational execution issues suggest blocker accumulation, throughput constraints, or delivery coordination gaps.",
+                    risk_detail="Execution issues may increase milestone risk, rework, or delivery instability.",
+                    focus_area="Throughput, blocker removal, team support, delivery coordination",
+                    how_to_proceed=build_fallback_steps("Execution risk"),
                 )
             )
 
-        # 6. Data risk
         if row["Data Risk"] >= 4:
             triggers["IT Director / IT Manager"].append(
                 build_action_trigger(
@@ -507,12 +671,15 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                     reason=(
                         f"{project} has a data risk score of {row['Data Risk']}, which may affect reporting, decision-making, or implementation quality."
                     ),
-                    action="Validate data readiness, data quality controls, and ownership for remediation.",
+                    action="Address data readiness and quality issues that may affect delivery or reporting.",
                     score=7,
+                    root_cause="Data quality, availability, or ownership issues are creating delivery and reporting risk.",
+                    risk_detail="Poor data readiness may affect decisions, implementation quality, and stakeholder reporting confidence.",
+                    focus_area="Data readiness, quality controls, ownership, reporting dependencies",
+                    how_to_proceed=build_fallback_steps("Data risk"),
                 )
             )
 
-        # 7. Lower AI score / lower strategic value
         if row["AI Score"] < 3.8:
             triggers["Executive / Leadership"].append(
                 build_action_trigger(
@@ -522,12 +689,15 @@ def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
                     reason=(
                         f"{project} has a lower AI/strategic score of {row['AI Score']}, suggesting weaker portfolio alignment."
                     ),
-                    action="Review whether this initiative should continue as-is, be deprioritized, or be reframed.",
+                    action="Review whether the initiative should continue as-is, be deprioritized, or be reframed.",
                     score=5,
+                    root_cause="Lower strategic score suggests weaker alignment to portfolio value or transformation priorities.",
+                    risk_detail="Continuing lower-value work may consume resources needed for higher-priority outcomes.",
+                    focus_area="Strategic alignment, prioritization, continue/reframe/deprioritize decisions",
+                    how_to_proceed=build_fallback_steps("Priority alignment review"),
                 )
             )
 
-    # Sort and trim for cleaner display
     for role in triggers:
         triggers[role] = sorted(triggers[role], key=lambda x: x["score"], reverse=True)[:6]
 
@@ -557,18 +727,53 @@ Your task is to convert structured PMO portfolio signals into concise, executive
 
 Rules:
 1. Recommendations must be grounded in the provided portfolio signals and rule triggers.
-2. Do not invent metrics, risks, or project details.
+2. Do not invent metrics, risks, project details, or execution facts.
 3. Position all outputs as suggested actions, not mandatory commands.
-4. Keep the tone professional, concise, and client-facing.
+4. Keep the tone professional, concise, client-facing, and execution-oriented.
 5. For each role, produce the top actions with:
    - action
    - priority (High/Medium/Low)
    - why_it_matters
+   - root_cause
+   - risk_detail
+   - focus_area
+   - how_to_proceed
    - timeframe (Now/This week/This month)
-6. Make outputs practical and business-oriented.
-7. Avoid generic fluff.
-8. Return valid JSON only.
+6. Root cause, risk detail, and execution steps must reflect the actual data and rule triggers.
+7. Focus areas may include critical path, milestone slippage, blockers, dependencies, resource constraints, budget pressure, readiness, and reporting impacts where applicable.
+8. Keep how_to_proceed practical, short, and step-based.
+9. Avoid generic fluff.
+10. Return valid JSON only.
 """
+
+
+def convert_triggers_to_fallback_recommendations(triggers: dict) -> dict:
+    roles_output = []
+
+    for role in ROLE_ORDER:
+        role_actions = []
+        for item in triggers.get(role, [])[:5]:
+            role_actions.append(
+                {
+                    "action": f"{item['action']} ({item['project']})",
+                    "priority": item["priority"],
+                    "why_it_matters": item["reason"],
+                    "root_cause": item.get("root_cause", item["signal"]),
+                    "risk_detail": item.get("risk_detail", item["reason"]),
+                    "focus_area": item.get("focus_area", "General execution"),
+                    "how_to_proceed": item.get("how_to_proceed", build_fallback_steps(item["signal"])),
+                    "timeframe": item["timeframe"],
+                }
+            )
+
+        roles_output.append(
+            {
+                "role": role,
+                "actions": role_actions,
+            }
+        )
+
+    return {"roles": roles_output}
 
 
 def generate_action_center_with_ai(df_input: pd.DataFrame, triggers: dict) -> dict:
@@ -604,9 +809,12 @@ def generate_action_center_with_ai(df_input: pd.DataFrame, triggers: dict) -> di
         "instruction": (
             "Generate the top role-based recommended actions. "
             "Use the rule triggers as the primary source of truth. "
+            "For each action return: action, priority, why_it_matters, root_cause, risk_detail, "
+            "focus_area, how_to_proceed, timeframe. "
             "Return JSON with this shape: "
             "{'roles': [{'role': 'Project Manager', 'actions': [{'action': '...', 'priority': 'High', "
-            "'why_it_matters': '...', 'timeframe': 'Now'}]}]}"
+            "'why_it_matters': '...', 'root_cause': '...', 'risk_detail': '...', "
+            "'focus_area': '...', 'how_to_proceed': '1....', 'timeframe': 'Now'}]}]}"
         ),
     }
 
@@ -614,7 +822,7 @@ def generate_action_center_with_ai(df_input: pd.DataFrame, triggers: dict) -> di
         response = client.chat.completions.create(
             model="gpt-4.1-mini",
             temperature=0.2,
-            max_tokens=1200,
+            max_tokens=1600,
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": ACTION_CENTER_SYSTEM_PROMPT},
@@ -637,31 +845,6 @@ def generate_action_center_with_ai(df_input: pd.DataFrame, triggers: dict) -> di
             "recommendations": convert_triggers_to_fallback_recommendations(triggers),
             "error": str(e),
         }
-
-
-def convert_triggers_to_fallback_recommendations(triggers: dict) -> dict:
-    roles_output = []
-
-    for role in ROLE_ORDER:
-        role_actions = []
-        for item in triggers.get(role, [])[:5]:
-            role_actions.append(
-                {
-                    "action": f"{item['action']} ({item['project']})",
-                    "priority": item["priority"],
-                    "why_it_matters": item["reason"],
-                    "timeframe": item["timeframe"],
-                }
-            )
-
-        roles_output.append(
-            {
-                "role": role,
-                "actions": role_actions,
-            }
-        )
-
-    return {"roles": roles_output}
 
 
 def render_priority_badge(priority: str) -> str:
@@ -694,21 +877,30 @@ def render_action_cards(action_payload: dict):
             priority = action.get("priority", "Medium")
             action_text = action.get("action", "")
             why_it_matters = action.get("why_it_matters", "")
+            root_cause = action.get("root_cause", "")
+            risk_detail = action.get("risk_detail", "")
+            focus_area = action.get("focus_area", "")
+            how_to_proceed = action.get("how_to_proceed", "")
             timeframe = action.get("timeframe", "This week")
 
             st.markdown(
                 f"""
-                <div style="border:1px solid #e6e6e6; border-radius:14px; padding:16px; margin-bottom:12px; background-color:#ffffff;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px;">
+                <div style="border:1px solid #e6e6e6; border-radius:14px; padding:18px; margin-bottom:14px; background-color:#ffffff;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px;">
                         <div style="font-size:16px; font-weight:700;">{idx}. {action_text}</div>
                         <div>{render_priority_badge(priority)}</div>
                     </div>
-                    <div style="font-size:14px; margin-bottom:6px;"><strong>Why it matters:</strong> {why_it_matters}</div>
+                    <div style="font-size:14px; margin-bottom:8px;"><strong>Why it matters:</strong> {why_it_matters}</div>
+                    <div style="font-size:14px; margin-bottom:8px;"><strong>Root cause:</strong> {root_cause}</div>
+                    <div style="font-size:14px; margin-bottom:8px;"><strong>Risk detail:</strong> {risk_detail}</div>
+                    <div style="font-size:14px; margin-bottom:8px;"><strong>Focus areas:</strong> {focus_area}</div>
+                    <div style="font-size:14px; margin-bottom:8px;"><strong>How to proceed:</strong><br><div style="margin-left:10px; white-space:pre-line;">{how_to_proceed}</div></div>
                     <div style="font-size:14px;"><strong>Suggested timeframe:</strong> {timeframe}</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
-            )    
+            )
+
 # =========================================================
 # SESSION STATE
 # =========================================================
@@ -1044,7 +1236,7 @@ with tab3:
         st.dataframe(risk_agent_view, use_container_width=True)
     else:
         st.info("Click the button to run AI Risk Prediction.")
-# =========================================================
+      # =========================================================
 # TAB 4 - AI ACTION CENTER
 # =========================================================
 with tab4:
@@ -1097,6 +1289,10 @@ with tab4:
                             "Timeframe": item["timeframe"],
                             "Signal": item["signal"],
                             "Suggested Action": item["action"],
+                            "Root Cause": item.get("root_cause", ""),
+                            "Risk Detail": item.get("risk_detail", ""),
+                            "Focus Areas": item.get("focus_area", ""),
+                            "How to Proceed": item.get("how_to_proceed", ""),
                             "Why": item["reason"],
                         }
                     )
@@ -1126,10 +1322,11 @@ with tab4:
         st.markdown("---")
         st.caption(
             "These recommendations are generated from current dashboard signals and interpreted as decision support. "
-            "They should be reviewed alongside delivery context, stakeholder input, and governance decisions."
+            "They should be reviewed alongside delivery context, stakeholder input, governance decisions, and actual project constraints."
         )
     else:
-        st.info("Click the button to generate role-based recommendations.")        
+        st.info("Click the button to generate role-based recommendations.")
+
 # =========================================================
 # TAB 5 - AI PMO CHATBOT
 # =========================================================
@@ -1354,4 +1551,4 @@ st.markdown("---")
 st.caption(
     "Note: Email-based usage limits are enabled. IP-based control usually requires "
     "a backend or reverse proxy and is not reliably available in basic Streamlit deployments."
-)
+)  
