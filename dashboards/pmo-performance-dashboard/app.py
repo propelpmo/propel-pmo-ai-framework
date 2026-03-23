@@ -181,6 +181,7 @@ def get_rag_context(user_query: str) -> str:
     return ""
 
 
+@st.cache_resource
 def get_openai_client():
     api_key = ""
     try:
@@ -312,7 +313,403 @@ def predict_project_risk(row):
             "Risk Driver": ", ".join(drivers[:3]),
         }
     )
-   # =========================================================
+# =========================================================
+# AI ACTION CENTER HELPERS
+# =========================================================
+ROLE_ORDER = [
+    "Project Manager",
+    "Executive / Leadership",
+    "IT Director / IT Manager",
+]
+
+def get_priority_label(score: int) -> str:
+    if score >= 8:
+        return "High"
+    if score >= 4:
+        return "Medium"
+    return "Low"
+
+
+def get_timeframe_label(score: int) -> str:
+    if score >= 8:
+        return "Now"
+    if score >= 4:
+        return "This week"
+    return "This month"
+
+
+def build_action_trigger(project, role, signal, reason, action, score):
+    return {
+        "project": project,
+        "role": role,
+        "signal": signal,
+        "reason": reason,
+        "action": action,
+        "score": score,
+        "priority": get_priority_label(score),
+        "timeframe": get_timeframe_label(score),
+    }
+
+
+def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
+    triggers = {role: [] for role in ROLE_ORDER}
+
+    for _, row in df_input.iterrows():
+        project = row["Project"]
+
+        # 1. Red / Amber / High risk conditions
+        if row["RAG Status"] == "Red" or row["Risk"] == "High":
+            triggers["Project Manager"].append(
+                build_action_trigger(
+                    project=project,
+                    role="Project Manager",
+                    signal="Delivery escalation",
+                    reason=(
+                        f"{project} is flagged as {row['RAG Status']} with {row['Risk']} risk. "
+                        "This indicates elevated delivery pressure and a need for immediate action."
+                    ),
+                    action="Update the risk log, confirm root causes, and escalate unresolved blockers.",
+                    score=9,
+                )
+            )
+            triggers["Executive / Leadership"].append(
+                build_action_trigger(
+                    project=project,
+                    role="Executive / Leadership",
+                    signal="Leadership attention required",
+                    reason=(
+                        f"{project} is showing a red/high-risk signal that may affect portfolio outcomes "
+                        "or delivery confidence."
+                    ),
+                    action="Review escalation needs, decision bottlenecks, and whether executive intervention is required.",
+                    score=8,
+                )
+            )
+            triggers["IT Director / IT Manager"].append(
+                build_action_trigger(
+                    project=project,
+                    role="IT Director / IT Manager",
+                    signal="Technical / delivery blocker review",
+                    reason=(
+                        f"{project} shows elevated execution risk and may require technical unblock, "
+                        "resource support, or delivery triage."
+                    ),
+                    action="Assess delivery blockers, validate technical readiness, and reassign capacity if needed.",
+                    score=8,
+                )
+            )
+
+        # 2. Low completion
+        if row["Completion"] < 50:
+            triggers["Project Manager"].append(
+                build_action_trigger(
+                    project=project,
+                    role="Project Manager",
+                    signal="Low progress",
+                    reason=(
+                        f"{project} is only {row['Completion']}% complete, suggesting possible slippage "
+                        "or weak execution momentum."
+                    ),
+                    action="Rebaseline near-term milestones, review overdue work, and align owners on recovery actions.",
+                    score=8,
+                )
+            )
+            triggers["Executive / Leadership"].append(
+                build_action_trigger(
+                    project=project,
+                    role="Executive / Leadership",
+                    signal="Delivery momentum risk",
+                    reason=(
+                        f"{project} has low completion relative to active delivery expectations."
+                    ),
+                    action="Confirm whether current scope, funding, and priority remain appropriate.",
+                    score=6,
+                )
+            )
+
+        # 3. Schedule risk
+        if row["Schedule Risk"] >= 4:
+            triggers["Project Manager"].append(
+                build_action_trigger(
+                    project=project,
+                    role="Project Manager",
+                    signal="Schedule pressure",
+                    reason=(
+                        f"{project} has a schedule risk score of {row['Schedule Risk']}, "
+                        "which suggests milestones may slip without intervention."
+                    ),
+                    action="Review critical path items, escalate dependencies, and update milestone recovery dates.",
+                    score=8,
+                )
+            )
+            triggers["IT Director / IT Manager"].append(
+                build_action_trigger(
+                    project=project,
+                    role="IT Director / IT Manager",
+                    signal="Dependency / readiness check",
+                    reason=(
+                        f"{project} is under schedule pressure and may be affected by sequencing, technical readiness, or team availability."
+                    ),
+                    action="Validate environment readiness, integration dependencies, and team execution capacity.",
+                    score=7,
+                )
+            )
+
+        # 4. Budget risk
+        if row["Budget Risk"] >= 4:
+            triggers["Executive / Leadership"].append(
+                build_action_trigger(
+                    project=project,
+                    role="Executive / Leadership",
+                    signal="Budget pressure",
+                    reason=(
+                        f"{project} has a budget risk score of {row['Budget Risk']}, which may require funding review or priority trade-offs."
+                    ),
+                    action="Review budget tolerance, funding decisions, and potential scope trade-offs.",
+                    score=8,
+                )
+            )
+            triggers["Project Manager"].append(
+                build_action_trigger(
+                    project=project,
+                    role="Project Manager",
+                    signal="Cost management review",
+                    reason=(
+                        f"{project} is showing meaningful budget pressure."
+                    ),
+                    action="Confirm cost drivers, review variance causes, and prepare mitigation options.",
+                    score=6,
+                )
+            )
+
+        # 5. Delivery risk
+        if row["Delivery Risk"] >= 4:
+            triggers["IT Director / IT Manager"].append(
+                build_action_trigger(
+                    project=project,
+                    role="IT Director / IT Manager",
+                    signal="Execution risk",
+                    reason=(
+                        f"{project} has a delivery risk score of {row['Delivery Risk']}, indicating operational execution concerns."
+                    ),
+                    action="Review team throughput, remove technical blockers, and align delivery support where needed.",
+                    score=8,
+                )
+            )
+
+        # 6. Data risk
+        if row["Data Risk"] >= 4:
+            triggers["IT Director / IT Manager"].append(
+                build_action_trigger(
+                    project=project,
+                    role="IT Director / IT Manager",
+                    signal="Data risk",
+                    reason=(
+                        f"{project} has a data risk score of {row['Data Risk']}, which may affect reporting, decision-making, or implementation quality."
+                    ),
+                    action="Validate data readiness, data quality controls, and ownership for remediation.",
+                    score=7,
+                )
+            )
+
+        # 7. Lower AI score / lower strategic value
+        if row["AI Score"] < 3.8:
+            triggers["Executive / Leadership"].append(
+                build_action_trigger(
+                    project=project,
+                    role="Executive / Leadership",
+                    signal="Priority alignment review",
+                    reason=(
+                        f"{project} has a lower AI/strategic score of {row['AI Score']}, suggesting weaker portfolio alignment."
+                    ),
+                    action="Review whether this initiative should continue as-is, be deprioritized, or be reframed.",
+                    score=5,
+                )
+            )
+
+    # Sort and trim for cleaner display
+    for role in triggers:
+        triggers[role] = sorted(triggers[role], key=lambda x: x["score"], reverse=True)[:6]
+
+    return triggers
+
+
+def build_action_center_summary(df_input: pd.DataFrame) -> dict:
+    total_projects = len(df_input)
+    red_count = int((df_input["RAG Status"] == "Red").sum())
+    amber_count = int((df_input["RAG Status"] == "Amber").sum())
+    high_risk_count = int((df_input["Risk"] == "High").sum())
+    avg_completion = round(df_input["Completion"].mean(), 1)
+
+    return {
+        "total_projects": total_projects,
+        "red_count": red_count,
+        "amber_count": amber_count,
+        "high_risk_count": high_risk_count,
+        "avg_completion": avg_completion,
+    }
+
+
+ACTION_CENTER_SYSTEM_PROMPT = """
+You are the Propel PMO AI Action Center.
+
+Your task is to convert structured PMO portfolio signals into concise, executive-friendly, role-based recommendations.
+
+Rules:
+1. Recommendations must be grounded in the provided portfolio signals and rule triggers.
+2. Do not invent metrics, risks, or project details.
+3. Position all outputs as suggested actions, not mandatory commands.
+4. Keep the tone professional, concise, and client-facing.
+5. For each role, produce the top actions with:
+   - action
+   - priority (High/Medium/Low)
+   - why_it_matters
+   - timeframe (Now/This week/This month)
+6. Make outputs practical and business-oriented.
+7. Avoid generic fluff.
+8. Return valid JSON only.
+"""
+
+
+def generate_action_center_with_ai(df_input: pd.DataFrame, triggers: dict) -> dict:
+    client = get_openai_client()
+    if client is None:
+        return {
+            "mode": "fallback",
+            "recommendations": convert_triggers_to_fallback_recommendations(triggers),
+            "error": "OpenAI client unavailable",
+        }
+
+    summary = build_action_center_summary(df_input)
+
+    compact_projects = df_input[
+        [
+            "Project",
+            "Completion",
+            "AI Score",
+            "Risk",
+            "RAG Status",
+            "Schedule Risk",
+            "Budget Risk",
+            "Delivery Risk",
+            "Data Risk",
+        ]
+    ].to_dict(orient="records")
+
+    user_payload = {
+        "portfolio_summary": summary,
+        "project_signals": compact_projects,
+        "rule_triggers": triggers,
+        "roles": ROLE_ORDER,
+        "instruction": (
+            "Generate the top role-based recommended actions. "
+            "Use the rule triggers as the primary source of truth. "
+            "Return JSON with this shape: "
+            "{'roles': [{'role': 'Project Manager', 'actions': [{'action': '...', 'priority': 'High', "
+            "'why_it_matters': '...', 'timeframe': 'Now'}]}]}"
+        ),
+    }
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4.1-mini",
+            temperature=0.2,
+            max_tokens=1200,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": ACTION_CENTER_SYSTEM_PROMPT},
+                {"role": "user", "content": json.dumps(user_payload)},
+            ],
+        )
+
+        content = response.choices[0].message.content.strip()
+        parsed = json.loads(content)
+
+        return {
+            "mode": "ai",
+            "recommendations": parsed,
+            "error": None,
+        }
+
+    except Exception as e:
+        return {
+            "mode": "fallback",
+            "recommendations": convert_triggers_to_fallback_recommendations(triggers),
+            "error": str(e),
+        }
+
+
+def convert_triggers_to_fallback_recommendations(triggers: dict) -> dict:
+    roles_output = []
+
+    for role in ROLE_ORDER:
+        role_actions = []
+        for item in triggers.get(role, [])[:5]:
+            role_actions.append(
+                {
+                    "action": f"{item['action']} ({item['project']})",
+                    "priority": item["priority"],
+                    "why_it_matters": item["reason"],
+                    "timeframe": item["timeframe"],
+                }
+            )
+
+        roles_output.append(
+            {
+                "role": role,
+                "actions": role_actions,
+            }
+        )
+
+    return {"roles": roles_output}
+
+
+def render_priority_badge(priority: str) -> str:
+    color_map = {
+        "High": "#e74c3c",
+        "Medium": "#f39c12",
+        "Low": "#2ecc71",
+    }
+    color = color_map.get(priority, "#6c757d")
+    return (
+        f"<span style='background:{color}; color:white; padding:4px 10px; "
+        f"border-radius:12px; font-size:12px; font-weight:600;'>{priority}</span>"
+    )
+
+
+def render_action_cards(action_payload: dict):
+    roles = action_payload.get("roles", [])
+
+    for role_block in roles:
+        role = role_block.get("role", "Role")
+        actions = role_block.get("actions", [])
+
+        st.markdown(f"### {role}")
+
+        if not actions:
+            st.info("No significant actions suggested at this time.")
+            continue
+
+        for idx, action in enumerate(actions, start=1):
+            priority = action.get("priority", "Medium")
+            action_text = action.get("action", "")
+            why_it_matters = action.get("why_it_matters", "")
+            timeframe = action.get("timeframe", "This week")
+
+            st.markdown(
+                f"""
+                <div style="border:1px solid #e6e6e6; border-radius:14px; padding:16px; margin-bottom:12px; background-color:#ffffff;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:8px;">
+                        <div style="font-size:16px; font-weight:700;">{idx}. {action_text}</div>
+                        <div>{render_priority_badge(priority)}</div>
+                    </div>
+                    <div style="font-size:14px; margin-bottom:6px;"><strong>Why it matters:</strong> {why_it_matters}</div>
+                    <div style="font-size:14px;"><strong>Suggested timeframe:</strong> {timeframe}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )    
+# =========================================================
 # SESSION STATE
 # =========================================================
 if "messages" not in st.session_state:
@@ -381,8 +778,8 @@ df["Risk Score"] = df["Risk"].map(risk_map)
 # =========================================================
 # TABS
 # =========================================================
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["Dashboard", "AI Executive Summary", "AI Risk Prediction", "AI PMO Chatbot"]
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    ["Dashboard", "AI Executive Summary", "AI Risk Prediction", "AI Action Center", "AI PMO Chatbot"]
 )
 
 # =========================================================
@@ -648,7 +1045,93 @@ with tab3:
     else:
         st.info("Click the button to run AI Risk Prediction.")
 # =========================================================
-# TAB 4 - AI PMO CHATBOT
+# TAB 4 - AI ACTION CENTER
+# =========================================================
+with tab4:
+    st.subheader("AI Action Center")
+    st.caption(
+        "Generate AI-assisted, role-based recommended actions using current portfolio signals such as health, risk, delays, and delivery pressure. "
+        "Recommendations are decision-support suggestions, not automated directives."
+    )
+
+    summary = build_action_center_summary(df)
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Projects", summary["total_projects"])
+    m2.metric("Red Projects", summary["red_count"])
+    m3.metric("Amber Projects", summary["amber_count"])
+    m4.metric("Avg Completion", f"{summary['avg_completion']}%")
+
+    st.markdown("#### Recommendation Controls")
+    col_a, col_b = st.columns([1, 2])
+
+    with col_a:
+        use_ai_narrative = st.checkbox(
+            "Use OpenAI narrative generation",
+            value=True,
+            help="When enabled, the app uses OpenAI to refine rule-based signals into polished role-based recommendations.",
+        )
+
+    with col_b:
+        st.caption(
+            "The rules engine always runs first. AI is used only to improve recommendation wording and role framing."
+        )
+
+    run_action_center = st.button(
+        "Generate AI Action Center Recommendations",
+        key="generate_action_center_btn",
+    )
+
+    if run_action_center:
+        triggers = generate_role_based_triggers(df)
+
+        with st.expander("View detected rule triggers", expanded=False):
+            trigger_rows = []
+            for role_name, items in triggers.items():
+                for item in items:
+                    trigger_rows.append(
+                        {
+                            "Role": role_name,
+                            "Project": item["project"],
+                            "Priority": item["priority"],
+                            "Timeframe": item["timeframe"],
+                            "Signal": item["signal"],
+                            "Suggested Action": item["action"],
+                            "Why": item["reason"],
+                        }
+                    )
+            if trigger_rows:
+                st.dataframe(pd.DataFrame(trigger_rows), use_container_width=True)
+            else:
+                st.info("No major triggers identified.")
+
+        if use_ai_narrative:
+            result = generate_action_center_with_ai(df, triggers)
+            if result["mode"] == "fallback":
+                st.warning(
+                    "OpenAI narrative generation was unavailable, so rule-based recommendations are shown instead."
+                )
+                if result.get("error"):
+                    st.caption(f"Technical note: {result['error']}")
+        else:
+            result = {
+                "mode": "fallback",
+                "recommendations": convert_triggers_to_fallback_recommendations(triggers),
+                "error": None,
+            }
+
+        st.markdown("## Role-Based Recommendations")
+        render_action_cards(result["recommendations"])
+
+        st.markdown("---")
+        st.caption(
+            "These recommendations are generated from current dashboard signals and interpreted as decision support. "
+            "They should be reviewed alongside delivery context, stakeholder input, and governance decisions."
+        )
+    else:
+        st.info("Click the button to generate role-based recommendations.")        
+# =========================================================
+# TAB 5 - AI PMO CHATBOT
 # =========================================================
 with tab4:
     st.subheader("AI PMO Chatbot")
