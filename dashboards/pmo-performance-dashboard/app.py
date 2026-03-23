@@ -475,7 +475,7 @@ def build_fallback_steps(signal: str) -> str:
         "4. Assign accountable owners\n"
         "5. Track progress through closure"
     )
-    def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
+def generate_role_based_triggers(df_input: pd.DataFrame) -> dict:
     triggers = {role: [] for role in ROLE_ORDER}
 
     for _, row in df_input.iterrows():
@@ -1236,7 +1236,7 @@ with tab3:
         st.dataframe(risk_agent_view, use_container_width=True)
     else:
         st.info("Click the button to run AI Risk Prediction.")
-      # =========================================================
+# =========================================================
 # TAB 4 - AI ACTION CENTER
 # =========================================================
 with tab4:
@@ -1551,4 +1551,4 @@ st.markdown("---")
 st.caption(
     "Note: Email-based usage limits are enabled. IP-based control usually requires "
     "a backend or reverse proxy and is not reliably available in basic Streamlit deployments."
-)  
+)
